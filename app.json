@@ -1,19 +1,21 @@
 {
   "expo": {
-    "name": "iskannrxakan",
+    "name": "Chya Exchange",
     "slug": "iskannrxakan",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/nrxiskan_4k.png",
     "scheme": "iskannrxakan",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/nrxiskan_4k.png",
+      "bundleIdentifier": "com.trx.iskannrxakan"
     },
     "android": {
+      "package": "com.trx.iskannrxakan",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "foregroundImage": "./assets/images/nrxiskan_4k.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
@@ -21,22 +23,29 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/nrxiskan_4k.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#0B1E3A",
+          "image": "./assets/images/nrxiskan_4k.png",
+          "imageWidth": 112
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3a20906c-c588-4701-b647-7b5c1ea504fd"
+      }
     }
   }
 }
