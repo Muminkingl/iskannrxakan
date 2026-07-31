@@ -30,8 +30,56 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files & secrets — NEVER commit these
+.env
+.env.*
 .env*.local
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
+
+# Security — API keys, credentials, tokens
+secrets.json
+secrets.yaml
+secrets.yml
+credentials.json
+credentials.yaml
+credentials.yml
+service-account*.json
+*-service-account.json
+google-services.json
+GoogleService-Info.plist
+firebase-adminsdk*.json
+
+# SSH & private keys
+id_rsa
+id_ecdsa
+id_ed25519
+*.pem
+*.ppk
+*_rsa
+*_ecdsa
+*_ed25519
+
+# Certificates & keystores (already covered above, consolidated here)
+*.p8
+*.p12
+*.jks
+*.keystore
+*.pfx
+*.crt
+*.cer
+
+# Auth / config with embedded secrets
+auth.json
+config.local.*
+local.settings.json
+appsettings.Development.json
 
 # typescript
 *.tsbuildinfo
