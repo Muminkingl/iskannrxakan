@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { FlagIcon } from '@/components/common/flag-icon';
 import type { BorsaItem } from '@/types/market';
 
 interface RegionalBorsaCardProps {
@@ -17,9 +18,7 @@ export function RegionalBorsaCard({ items }: RegionalBorsaCardProps) {
           <Text style={styles.borsaUnitText}>100$</Text>
           <View style={styles.borsaTitleRow}>
             <Text style={styles.borsaNameText}>{item.nameKurdish}</Text>
-            <View style={styles.flagTag}>
-              <Text style={styles.flagTagText}>{item.flagCode}</Text>
-            </View>
+            <FlagIcon code={item.flagCode} size={18} />
           </View>
         </View>
       ))}
@@ -67,19 +66,6 @@ const styles = StyleSheet.create({
   borsaNameText: {
     color: '#1E293B',
     fontSize: 15,
-    fontWeight: '800',
-  },
-  flagTag: {
-    backgroundColor: '#EEF2FF',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#C7D2FE',
-  },
-  flagTagText: {
-    color: '#3730A3',
-    fontSize: 10,
     fontWeight: '800',
   },
 });

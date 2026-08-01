@@ -1,6 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
+import { FlagIcon } from '@/components/common/flag-icon';
+import { getCurrencyName } from '@/constants/translations';
+import { useLanguage } from '@/context/language-context';
+import { useTheme } from '@/context/theme-context';
 import type { RateItem } from '@/types/market';
 
 interface RatesTableProps {
@@ -8,133 +11,126 @@ interface RatesTableProps {
 }
 
 export function RatesTable({ rates }: RatesTableProps) {
+  const { colors, isDark } = useTheme();
+  const { t, language } = useLanguage();
+  const isEnglish = language === 'english';
+
   return (
-    <View style={styles.detailedSection}>
-      <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionTitleText}>نرخی زۆرترینی بازاڕ</Text>
-        <Text style={styles.buySellHeaderLabel}>کڕین / فڕۆشتن</Text>
+    <View style={[styles.container, { backgroundColor: colors.cardBg, borderColor: colors.borderColor }]}>
+      {/* Table Header Row */}
+      <View
+        style={[
+          styles.tableHeaderRow,
+          { backgroundColor: colors.bgSecondary, borderBottomColor: colors.borderColor },
+          isEnglish && styles.rowLtr,
+        ]}
+      >
+        <View style={[styles.colCurrencyHeader, isEnglish && styles.alignLeft]}>
+          <Text style={[styles.headerTitleCurr, { color: colors.textPrimary }]}>{t('currencyLabel')}</Text>
+          <Text style={[styles.headerSubCurr, { color: colors.textSecondary }]}>{t('currencySub')}</Text>
+        </View>
+
+        <View style={styles.colBuyHeader}>
+          <Text style={styles.headerTitleBuy}>{t('buyLabel')}</Text>
+          <Text style={styles.headerSubBuy}>{t('buySub')}</Text>
+        </View>
+
+        <View style={[styles.colSellHeader, isEnglish && styles.alignRight]}>
+          <Text style={styles.headerTitleSell}>{t('sellLabel')}</Text>
+          <Text style={styles.headerSubSell}>{t('sellSub')}</Text>
+        </View>
       </View>
 
-      {rates.map((rate) => (
-        <View key={rate.id} style={styles.rateCardRow}>
-          {/* Buy / Sell Boxes */}
-          <View style={styles.ratePricesGroup}>
-            <View style={styles.buyBadge}>
-              <Text style={styles.buyText}>{rate.buyRate} د.ع</Text>
+      {/* Currency Rows */}
+      <View style={styles.tableBody}>
+        {rates.map((rate) => (
+          <View
+            key={rate.id}
+            style={[styles.tableRow, { borderBottomColor: colors.borderColor }, isEnglish && styles.rowLtr]}
+          >
+            {/* CURRENCY */}
+            <View style={[styles.colCurrency, isEnglish && styles.rowLtr]}>
+              <View style={styles.flagContainer}>
+                <FlagIcon code={rate.flagCode} size={18} />
+              </View>
+              <View style={[styles.currencyMetaRight, isEnglish && styles.alignLeft]}>
+                <Text style={[styles.currencyNameKurdish, { color: colors.textPrimary }, isEnglish && styles.textLeft]}>
+                  {getCurrencyName(rate.code, rate.nameKurdish, language)}
+                </Text>
+                <Text style={[styles.currencyCodeSub, { color: colors.textSecondary }, isEnglish && styles.textLeft]}>
+                  {rate.unitLabel}
+                </Text>
+              </View>
             </View>
-            <View style={styles.sellBadge}>
-              <Text style={styles.sellText}>{rate.sellRate} د.ع</Text>
-            </View>
-          </View>
 
-          {/* Currency Name & Unit */}
-          <View style={styles.rateMetaGroup}>
-            <View style={styles.rateNameRow}>
-              <Text style={styles.rateNameKurdish}>{rate.nameKurdish}</Text>
-              {rate.category === 'gold' ? (
-                <Ionicons name="diamond" size={16} color="#D97706" />
-              ) : (
-                <View style={styles.codePill}>
-                  <Text style={styles.codePillText}>{rate.code}</Text>
-                </View>
-              )}
+            {/* BUY */}
+            <View style={styles.colBuy}>
+              <View style={[styles.buyPill, isDark && { backgroundColor: '#0F1950', borderColor: '#1E3A8A' }]}>
+                <Text style={[styles.buyPriceText, isDark && { color: '#93C5FD' }]}>{rate.buyRate}</Text>
+              </View>
             </View>
-            <Text style={styles.rateUnitText}>{rate.unitLabel}</Text>
+
+            {/* SELL */}
+            <View style={[styles.colSell, isEnglish && styles.alignRight]}>
+              <View style={[styles.sellPill, isDark && { backgroundColor: '#3B0A0A', borderColor: '#7F1D1D' }]}>
+                <Text style={[styles.sellPriceText, isDark && { color: '#FCA5A5' }]}>{rate.sellRate}</Text>
+              </View>
+            </View>
           </View>
-        </View>
-      ))}
+        ))}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  detailedSection: {
-    marginTop: 18,
-    paddingHorizontal: 16,
-    gap: 10,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  sectionTitleText: {
-    color: '#1E293B',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  buySellHeaderLabel: {
-    color: '#64748B',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  rateCardRow: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  container: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    overflow: 'hidden',
   },
-  ratePricesGroup: {
-    flexDirection: 'row',
+  tableHeaderRow: {
+    flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
   },
-  buyBadge: {
-    backgroundColor: '#DC2626',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
+  rowLtr: {
+    flexDirection: 'row',
   },
-  buyText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
+  alignLeft: {
+    alignItems: 'flex-start',
   },
-  sellBadge: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  sellText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  rateMetaGroup: {
+  alignRight: {
     alignItems: 'flex-end',
   },
-  rateNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  textLeft: {
+    textAlign: 'left',
   },
-  rateNameKurdish: {
-    color: '#0F172A',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  codePill: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  codePillText: {
-    color: '#475569',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  rateUnitText: {
-    color: '#64748B',
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
-  },
+  colSellHeader: { flex: 1, alignItems: 'flex-start' },
+  headerTitleSell: { color: '#DC2626', fontSize: 12, fontWeight: '900', letterSpacing: 0.8 },
+  headerSubSell: { color: '#EF4444', fontSize: 10, fontWeight: '700', marginTop: 1 },
+  colBuyHeader: { flex: 1, alignItems: 'center' },
+  headerTitleBuy: { color: '#2563EB', fontSize: 12, fontWeight: '900', letterSpacing: 0.8 },
+  headerSubBuy: { color: '#3B82F6', fontSize: 10, fontWeight: '700', marginTop: 1 },
+  colCurrencyHeader: { flex: 1.4, alignItems: 'flex-end' },
+  headerTitleCurr: { fontSize: 12, fontWeight: '900', letterSpacing: 0.8 },
+  headerSubCurr: { fontSize: 10, fontWeight: '700', marginTop: 1 },
+  tableBody: { gap: 0 },
+  tableRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1 },
+  colSell: { flex: 1, alignItems: 'flex-start' },
+  sellPill: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, minWidth: 82, alignItems: 'center' },
+  sellPriceText: { color: '#DC2626', fontSize: 14, fontWeight: '900' },
+  colBuy: { flex: 1, alignItems: 'center' },
+  buyPill: { backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#C7D2FE', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, minWidth: 82, alignItems: 'center' },
+  buyPriceText: { color: '#2563EB', fontSize: 14, fontWeight: '900' },
+  colCurrency: { flex: 1.4, flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
+  currencyMetaRight: { alignItems: 'flex-end' },
+  currencyNameKurdish: { fontSize: 14, fontWeight: '800', textAlign: 'right' },
+  currencyCodeSub: { fontSize: 10, fontWeight: '700', marginTop: 2, textAlign: 'right' },
+  flagContainer: { width: 28, alignItems: 'center', justifyContent: 'center' },
 });

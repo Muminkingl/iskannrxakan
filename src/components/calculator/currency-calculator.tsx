@@ -1,12 +1,99 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export function CurrencyCalculator() {
-  const [inputText, setInputText] = useState('0');
-  const [isUsdToIqd, setIsUsdToIqd] = useState(true);
+import { FlagIcon } from '@/components/common/flag-icon';
+import { getCurrencyName } from '@/constants/translations';
+import { useLanguage } from '@/context/language-context';
+import { useTheme } from '@/context/theme-context';
+import { supabase } from '@/lib/supabase';
 
-  const ratePerDollar = 1502.0;
+export interface CurrencyOption {
+  code: string;
+  nameKurdish: string;
+  flagCode: string;
+  rateInIqd: number; // Conversion rate relative to 1 unit in IQD
+}
+
+export const INITIAL_CURRENCIES: CurrencyOption[] = [
+  { code: 'USD', nameKurdish: 'دۆلاری ئەمریکی', flagCode: 'US', rateInIqd: 1503 },
+  { code: 'IQD', nameKurdish: 'دیناری عێراقی', flagCode: 'IQ', rateInIqd: 1 },
+  { code: 'EUR', nameKurdish: 'یۆرۆی ئەوروپی', flagCode: 'EU', rateInIqd: 1628 },
+  { code: 'GBP', nameKurdish: 'پاوەندی بەریتانی', flagCode: 'GB', rateInIqd: 1912 },
+  { code: 'TRY', nameKurdish: 'لیرەی تورکی', flagCode: 'TR', rateInIqd: 45.2 },
+  { code: 'AED', nameKurdish: 'درهمی ئیماراتی', flagCode: 'AE', rateInIqd: 409.2 },
+  { code: 'SAR', nameKurdish: 'ڕیاڵی سعودی', flagCode: 'SA', rateInIqd: 400.8 },
+  { code: 'JOD', nameKurdish: 'دیناری ئوردنی', flagCode: 'JO', rateInIqd: 2119.7 },
+  { code: 'CHF', nameKurdish: 'فرانکی سویسری', flagCode: 'CH', rateInIqd: 1682 },
+  { code: 'SEK', nameKurdish: 'کرۆنی سویدی', flagCode: 'SE', rateInIqd: 142.5 },
+  { code: 'NOK', nameKurdish: 'کرۆنی نەرویجی', flagCode: 'NO', rateInIqd: 138.6 },
+  { code: 'DKK', nameKurdish: 'کرۆنی دانیمارکی', flagCode: 'DK', rateInIqd: 218.4 },
+  { code: 'CAD', nameKurdish: 'دۆلاری کەنەدی', flagCode: 'CA', rateInIqd: 1092.3 },
+  { code: 'AUD', nameKurdish: 'دۆلاری ئوسترالی', flagCode: 'AU', rateInIqd: 981.5 },
+];
+
+export function CurrencyCalculator() {
+  const { colors, isDark } = useTheme();
+  const { t, language } = useLanguage();
+  const isEnglish = language === 'english';
+  const [currencies, setCurrencies] = useState<CurrencyOption[]>(INITIAL_CURRENCIES);
+  const [inputText, setInputText] = useState('100');
+  const [fromCurrency, setFromCurrency] = useState<CurrencyOption>(INITIAL_CURRENCIES[0]); // USD
+  const [toCurrency, setToCurrency] = useState<CurrencyOption>(INITIAL_CURRENCIES[1]); // IQD
+
+  const [pickerModalVisible, setPickerModalVisible] = useState(false);
+  const [selectingTarget, setSelectingTarget] = useState<'from' | 'to'>('from');
+
+  // Fetch live rates from DB & subscribe to Realtime
+  useEffect(() => {
+    fetchRatesFromDb();
+
+    const channel = supabase
+      .channel('calc_rates_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rates' }, () => {
+        fetchRatesFromDb();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchRatesFromDb = async () => {
+    try {
+      const { data, error } = await supabase.from('rates').select('*');
+      if (error || !data || data.length === 0) return;
+
+      const usdRow = data.find((r) => r.base_currency_code === 'USD');
+      const usdSellInIqd = usdRow ? Number(usdRow.sell_rate) / 100 : 1503;
+
+      const updated: CurrencyOption[] = INITIAL_CURRENCIES.map((c) => {
+        if (c.code === 'IQD') return c;
+        const row = data.find((r) => r.base_currency_code === c.code);
+        if (!row) return c;
+
+        const sell = Number(row.sell_rate);
+
+        if (c.code === 'USD') {
+          return { ...c, rateInIqd: sell / 100 };
+        }
+        if (row.quote_currency_code === 'IQD' && sell > 1000) {
+          return { ...c, rateInIqd: sell / 100 };
+        }
+        // If rate is in USD (e.g., EUR 113.9 = $1.139)
+        return { ...c, rateInIqd: (sell / 100) * usdSellInIqd };
+      });
+
+      setCurrencies(updated);
+
+      // Refresh currently selected from/to
+      setFromCurrency((prev) => updated.find((u) => u.code === prev.code) || prev);
+      setToCurrency((prev) => updated.find((u) => u.code === prev.code) || prev);
+    } catch (err) {
+      console.log('Error fetching calc rates:', err);
+    }
+  };
 
   const handleKeyPress = (val: string) => {
     if (val === 'C') {
@@ -35,73 +122,116 @@ export function CurrencyCalculator() {
     }
   };
 
-  const numericValue = parseFloat(inputText) || 0;
-  const convertedResult = isUsdToIqd
-    ? numericValue * ratePerDollar
-    : numericValue / ratePerDollar;
+  const handleSwap = () => {
+    const temp = fromCurrency;
+    setFromCurrency(toCurrency);
+    setToCurrency(temp);
+  };
+
+  const openPicker = (target: 'from' | 'to') => {
+    setSelectingTarget(target);
+    setPickerModalVisible(true);
+  };
+
+  const handleSelectCurrency = (curr: CurrencyOption) => {
+    if (selectingTarget === 'from') {
+      setFromCurrency(curr);
+    } else {
+      setToCurrency(curr);
+    }
+    setPickerModalVisible(false);
+  };
+
+  // Convert: (InputAmount * fromRateInIqd) / toRateInIqd
+  const numericInput = parseFloat(inputText) || 0;
+  const rawResult = (numericInput * fromCurrency.rateInIqd) / toCurrency.rateInIqd;
+
+  // Format result
+  const formattedResult =
+    toCurrency.code === 'IQD'
+      ? Math.round(rawResult).toLocaleString()
+      : rawResult.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Rate ratio text e.g. "1 USD = 1,503 IQD"
+  const ratioValue = fromCurrency.rateInIqd / toCurrency.rateInIqd;
+  const formattedRatio =
+    toCurrency.code === 'IQD'
+      ? Math.round(ratioValue).toLocaleString()
+      : ratioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
   return (
     <View style={styles.container}>
-      {/* Top Rate Banner */}
-      <View style={styles.headlineBanner}>
-        <Text style={styles.headlineText}>
-          1 دۆلاری ئه‌مریکی = 1502.00 دیناری عێراقی
+      {/* Sleek Live Exchange Header Badge */}
+      <View style={[styles.rateHeaderCard, { backgroundColor: colors.cardBg, borderColor: colors.borderColor }, isEnglish && styles.rowLtr]}>
+        <View style={[styles.liveIndicator, isEnglish && styles.rowLtr]}>
+          <View style={styles.greenDot} />
+          <Text style={[styles.liveText, { color: colors.textSecondary }]}>{t('calcLiveRate')}</Text>
+        </View>
+
+        <Text style={[styles.ratePillText, { color: colors.textPrimary }]}>
+          1 {fromCurrency.code} = {formattedRatio} {toCurrency.code}
         </Text>
       </View>
 
-      {/* Main Conversion Cards Box */}
-      <View style={styles.conversionCard}>
-        {/* Top Currency Input Display */}
-        <View style={styles.currencyRow}>
-          <View style={styles.calcIconBadge}>
-            <Ionicons name="calculator-outline" size={20} color="#FFFFFF" />
+      {/* Main Conversion Card */}
+      <View style={[styles.conversionCard, { backgroundColor: colors.cardBg, borderColor: colors.borderColor }]}>
+        {/* FROM Currency Row */}
+        <View style={styles.currencyBlock}>
+          <Text style={[styles.blockLabel, isEnglish && styles.textLeft]}>{t('calcFrom')}</Text>
+          <View style={styles.rowContent}>
+            <Pressable
+              onPress={() => openPicker('from')}
+              style={({ pressed }) => [styles.currencyDropdown, pressed && styles.pressed]}
+            >
+              <Ionicons name="chevron-down" size={16} color="#3B50C8" />
+              <Text style={styles.currencyCode}>{fromCurrency.code}</Text>
+              <Text style={styles.currencyName}>
+                {getCurrencyName(fromCurrency.code, fromCurrency.nameKurdish, language)}
+              </Text>
+              <FlagIcon code={fromCurrency.flagCode} size={22} />
+            </Pressable>
           </View>
-          <View style={styles.currencyMeta}>
-            <View style={styles.flagPill}>
-              <Text style={styles.flagPillText}>US</Text>
-            </View>
-            <Text style={styles.currencyNameText}>
-              {isUsdToIqd ? 'دۆلاری ئه‌مریکی' : 'دیناری عێراقی'}
-            </Text>
-          </View>
+          <Text style={styles.bigAmountDisplay} numberOfLines={1} adjustsFontSizeToFit>
+            {inputText}
+          </Text>
         </View>
 
-        <Text style={styles.bigAmountDisplay}>
-          {isUsdToIqd ? `$ ${inputText}` : `${inputText} د.ع`}
-        </Text>
-
-        {/* Swap Button */}
+        {/* Swap Button Divider */}
         <View style={styles.swapDividerRow}>
+          <View style={styles.dividerLine} />
           <Pressable
-            onPress={() => setIsUsdToIqd(!isUsdToIqd)}
+            onPress={handleSwap}
             style={({ pressed }) => [styles.swapCircleBtn, pressed && styles.pressed]}
           >
-            <Ionicons name="swap-vertical" size={22} color="#3B50C8" />
+            <Ionicons name="swap-vertical" size={20} color="#3B50C8" />
           </Pressable>
+          <View style={styles.dividerLine} />
         </View>
 
-        {/* Bottom Currency Output Display */}
-        <View style={styles.currencyRow}>
-          <View style={styles.currencyMeta}>
-            <View style={styles.flagPillIq}>
-              <Text style={styles.flagPillIqText}>IQ</Text>
-            </View>
-            <Text style={styles.currencyNameText}>
-              {isUsdToIqd ? 'دیناری عێراقی' : 'دۆلاری ئه‌مریکی'}
-            </Text>
+        {/* TO Currency Row */}
+        <View style={styles.currencyBlock}>
+          <Text style={[styles.blockLabel, isEnglish && styles.textLeft]}>{t('calcTo')}</Text>
+          <View style={styles.rowContent}>
+            <Pressable
+              onPress={() => openPicker('to')}
+              style={({ pressed }) => [styles.currencyDropdown, pressed && styles.pressed]}
+            >
+              <Ionicons name="chevron-down" size={16} color="#3B50C8" />
+              <Text style={styles.currencyCode}>{toCurrency.code}</Text>
+              <Text style={styles.currencyName}>
+                {getCurrencyName(toCurrency.code, toCurrency.nameKurdish, language)}
+              </Text>
+              <FlagIcon code={toCurrency.flagCode} size={22} />
+            </Pressable>
           </View>
+          <Text style={styles.bigResultDisplay} numberOfLines={1} adjustsFontSizeToFit>
+            {formattedResult}
+          </Text>
         </View>
-
-        <Text style={styles.bigResultDisplay}>
-          {isUsdToIqd
-            ? `${Math.round(convertedResult).toLocaleString()} د.ع`
-            : `$ ${convertedResult.toFixed(2)}`}
-        </Text>
       </View>
 
       {/* Onscreen Keypad Grid */}
       <View style={styles.keypadGrid}>
-        {/* Row 1 */}
         <View style={styles.keypadRow}>
           <KeypadButton label="1" onPress={() => handleKeyPress('1')} />
           <KeypadButton label="2" onPress={() => handleKeyPress('2')} />
@@ -109,7 +239,6 @@ export function CurrencyCalculator() {
           <KeypadButton label="X" variant="orange" onPress={() => handleKeyPress('X')} />
         </View>
 
-        {/* Row 2 */}
         <View style={styles.keypadRow}>
           <KeypadButton label="4" onPress={() => handleKeyPress('4')} />
           <KeypadButton label="5" onPress={() => handleKeyPress('5')} />
@@ -117,7 +246,6 @@ export function CurrencyCalculator() {
           <KeypadButton label="C" variant="red" onPress={() => handleKeyPress('C')} />
         </View>
 
-        {/* Row 3 */}
         <View style={styles.keypadRow}>
           <KeypadButton label="7" onPress={() => handleKeyPress('7')} />
           <KeypadButton label="8" onPress={() => handleKeyPress('8')} />
@@ -125,13 +253,71 @@ export function CurrencyCalculator() {
           <KeypadButton label="." onPress={() => handleKeyPress('.')} />
         </View>
 
-        {/* Row 4 */}
         <View style={styles.keypadRow}>
           <KeypadButton label="0" onPress={() => handleKeyPress('0')} />
           <KeypadButton label="00" onPress={() => handleKeyPress('00')} />
           <KeypadButton label="000" flexTwo onPress={() => handleKeyPress('000')} />
         </View>
       </View>
+
+      {/* Currency Selector Dropdown Modal */}
+      <Modal
+        visible={pickerModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPickerModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.backdrop} onPress={() => setPickerModalVisible(false)} />
+
+          <View style={styles.pickerModalCard}>
+            <View style={styles.pickerHeader}>
+              <Pressable
+                hitSlop={12}
+                onPress={() => setPickerModalVisible(false)}
+                style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+              >
+                <Ionicons name="close" size={22} color="#64748B" />
+              </Pressable>
+              <Text style={styles.pickerTitle}>
+                {selectingTarget === 'from' ? t('calcPickerFrom') : t('calcPickerTo')}
+              </Text>
+            </View>
+
+            <ScrollView style={styles.currencyList} showsVerticalScrollIndicator={false}>
+              {currencies.map((item) => {
+                const isSelected =
+                  selectingTarget === 'from'
+                    ? item.code === fromCurrency.code
+                    : item.code === toCurrency.code;
+
+                return (
+                  <Pressable
+                    key={item.code}
+                    onPress={() => handleSelectCurrency(item)}
+                    style={({ pressed }) => [
+                      styles.currencyItemRow,
+                      isSelected && styles.currencyItemActive,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    {isSelected && <Ionicons name="checkmark-circle" size={20} color="#3B50C8" />}
+
+                    <View style={styles.currencyItemMeta}>
+                      <Text style={styles.itemCodeText}>{item.code}</Text>
+                      <Text style={styles.itemNameText}>
+                        {getCurrencyName(item.code, item.nameKurdish, language)}
+                      </Text>
+                    </View>
+
+                    <FlagIcon code={item.flagCode} size={26} />
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -173,87 +359,114 @@ function KeypadButton({ label, variant = 'default', flexTwo = false, onPress }: 
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    gap: 14,
+    gap: 12,
   },
-  headlineBanner: {
-    alignItems: 'center',
-    paddingVertical: 10,
+  rowLtr: {
+    flexDirection: 'row',
   },
-  headlineText: {
-    color: '#3B50C8',
-    fontSize: 16,
-    fontWeight: '800',
-    textAlign: 'center',
+  textLeft: {
+    textAlign: 'left',
   },
-  conversionCard: {
+  rateHeaderCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    boxShadow: '0 4px 16px rgba(50, 50, 90, 0.04)',
   },
-  currencyRow: {
+  liveIndicator: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+  },
+  greenDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#16A34A',
+  },
+  liveText: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  ratePillText: {
+    color: '#3B50C8',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+
+  /* Conversion Card */
+  conversionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    boxShadow: '0 4px 18px rgba(50, 50, 90, 0.05)',
+  },
+  currencyBlock: {
+    gap: 6,
+  },
+  blockLabel: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  rowContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  calcIconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: '#4F55C7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  currencyMeta: {
+  currencyDropdown: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
     marginLeft: 'auto',
   },
-  flagPill: {
-    backgroundColor: '#EEF2FF',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  currencyCode: {
+    color: '#3B50C8',
+    fontSize: 13,
+    fontWeight: '900',
   },
-  flagPillText: {
-    color: '#3730A3',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  flagPillIq: {
-    backgroundColor: '#FEF2F2',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  flagPillIqText: {
-    color: '#991B1B',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  currencyNameText: {
-    color: '#475569',
-    fontSize: 15,
+  currencyName: {
+    color: '#1E293B',
+    fontSize: 14,
     fontWeight: '700',
   },
   bigAmountDisplay: {
     color: '#0F172A',
-    fontSize: 36,
-    fontWeight: '800',
+    fontSize: 32,
+    fontWeight: '900',
     textAlign: 'center',
-    marginVertical: 10,
+    marginVertical: 6,
   },
   swapDividerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     marginVertical: 4,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#F1F5F9',
   },
   swapCircleBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#EEF2FF',
     borderWidth: 1,
     borderColor: '#C7D2FE',
@@ -261,16 +474,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bigResultDisplay: {
-    color: '#1E293B',
+    color: '#3B50C8',
     fontSize: 32,
-    fontWeight: '800',
+    fontWeight: '900',
     textAlign: 'center',
-    marginTop: 10,
+    marginVertical: 6,
   },
 
   /* Keypad Grid */
   keypadGrid: {
-    marginTop: 6,
+    marginTop: 2,
     gap: 10,
   },
   keypadRow: {
@@ -279,8 +492,8 @@ const styles = StyleSheet.create({
   },
   keypadBtn: {
     flex: 1,
-    height: 56,
-    borderRadius: 10,
+    height: 52,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -289,8 +502,9 @@ const styles = StyleSheet.create({
     flex: 2.1,
   },
   btnDefault: {
-    backgroundColor: '#F1F3F9',
+    backgroundColor: '#FFFFFF',
     borderColor: '#E2E8F0',
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
   },
   btnOrange: {
     backgroundColor: '#F97316',
@@ -301,7 +515,7 @@ const styles = StyleSheet.create({
     borderColor: '#DC2626',
   },
   keypadBtnText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
   },
   btnTextDefault: {
@@ -310,6 +524,74 @@ const styles = StyleSheet.create({
   btnTextWhite: {
     color: '#FFFFFF',
   },
+
+  /* Modal Picker */
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+  },
+  pickerModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    maxHeight: '65%',
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 12,
+    marginBottom: 8,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  pickerTitle: {
+    color: '#0F172A',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  currencyList: {
+    marginTop: 4,
+  },
+  currencyItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+  },
+  currencyItemActive: {
+    backgroundColor: '#EEF2FF',
+  },
+  currencyItemMeta: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  itemCodeText: {
+    color: '#3B50C8',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  itemNameText: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
   pressed: {
     opacity: 0.75,
   },

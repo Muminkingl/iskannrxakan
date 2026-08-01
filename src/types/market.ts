@@ -26,4 +26,6 @@ export interface GoldItem {
   isDollar?: boolean;
 }
 
-export type TabId = 'home' | 'updates' | 'gold' | 'global' | 'calc';
+export type TabId = 'home' | 'updates' | 'gold' | 'chart' | 'calc' | 'admin';
+
+export type UserRole = 'owner' | 'admin' | 'user';
