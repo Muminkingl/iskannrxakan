@@ -4,6 +4,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 
 import { useLanguage } from '@/context/language-context';
+import { usePlan } from '@/context/plan-context';
 
 interface HeroHeaderProps {
   topInset: number;
@@ -38,6 +39,7 @@ export function HeroHeader({
   onOpenAdminPanel,
 }: HeroHeaderProps) {
   const { t, language } = useLanguage();
+  const { isVip, openPlanModal } = usePlan();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const rotation = useSharedValue(0);
 
@@ -61,8 +63,11 @@ export function HeroHeader({
       {/* Top Action Row */}
       <View style={styles.topActionRow}>
         <View style={styles.leftActionsGroup}>
-          <Pressable style={({ pressed }) => [styles.actionCircleGold, pressed && styles.pressed]}>
-            <Ionicons name="ribbon" size={18} color="#FBBF24" />
+          <Pressable
+            onPress={openPlanModal}
+            style={({ pressed }) => [styles.actionCircleGold, pressed && styles.pressed]}
+          >
+            <Ionicons name="diamond" size={18} color="#38BDF8" />
           </Pressable>
 
           <Pressable
@@ -97,11 +102,18 @@ export function HeroHeader({
           {t('heroKicker')} · {liveDate}
         </Text>
 
-        <View style={styles.priceRow}>
-          <Text style={styles.spotlightPrice}>
-            {usdBuyRate ?? '—'} {t('heroCurrencyUnit')}
-          </Text>
-        </View>
+        <Pressable onPress={!isVip ? openPlanModal : undefined} style={styles.priceRow}>
+          {isVip ? (
+            <Text style={styles.spotlightPrice}>
+              {usdBuyRate ?? '—'} {t('heroCurrencyUnit')}
+            </Text>
+          ) : (
+            <View style={styles.lockedHeaderPill}>
+              <Ionicons name="lock-closed" size={18} color="#38BDF8" style={{ marginRight: 6 }} />
+              <Text style={styles.lockedHeaderPrice}>•••••••• {t('heroCurrencyUnit')}</Text>
+            </View>
+          )}
+        </Pressable>
 
         <View style={styles.cityPillFrame}>
           <Text style={styles.cityPillText}>{t('heroCity')}</Text>
@@ -206,6 +218,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
+  },
+  lockedHeaderPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+  },
+  lockedHeaderPrice: {
+    color: '#38BDF8',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
   pressed: {
     opacity: 0.7,

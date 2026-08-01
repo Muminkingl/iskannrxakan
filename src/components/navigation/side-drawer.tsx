@@ -9,6 +9,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 
 import { useLanguage } from '@/context/language-context';
+import { usePlan } from '@/context/plan-context';
 import type { TabId, UserRole } from '@/types/market';
 
 interface SideDrawerProps {
@@ -36,7 +37,9 @@ export function SideDrawer({
   onOpenOwnerPanelModal,
   onSignOut,
 }: SideDrawerProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { isVip, daysRemaining, openPlanModal } = usePlan();
+  const isEnglish = language === 'english';
   const [modalMounted, setModalMounted] = useState(false);
   const progress = useSharedValue(0);
 
@@ -96,15 +99,42 @@ export function SideDrawer({
         >
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.drawerScroll}>
             {/* Top Banner Activation Card */}
-            <View style={styles.drawerBanner}>
-              <View style={styles.starBadgeCircle}>
-                <Ionicons name="star" size={20} color="#FFFFFF" />
+            <Pressable
+              onPress={() => handleCloseWithAnimation(() => openPlanModal())}
+              style={({ pressed }) => [
+                styles.drawerBanner,
+                isVip && { backgroundColor: '#0284C7', borderColor: '#38BDF8' },
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={[styles.starBadgeCircle, isVip && { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+                <Ionicons name="diamond" size={20} color="#FFFFFF" />
               </View>
               <View style={styles.drawerBannerCopy}>
-                <Text style={styles.drawerBannerTitle}>{t('drawerPlanBtnTitle')}</Text>
-                <Text style={styles.drawerBannerSub}>{t('drawerPlanBtnSub')}</Text>
+                <Text style={styles.drawerBannerTitle}>
+                  {isVip
+                    ? isEnglish
+                      ? 'Diamond VIP Member'
+                      : 'ئەکاونتی ئەڵماس (VIP)'
+                    : isEnglish
+                    ? 'General Member'
+                    : 'ئەکاونتی ئاسایی'}
+                </Text>
+                <Text style={styles.drawerBannerSub}>
+                  {isVip
+                    ? daysRemaining > 300
+                      ? isEnglish
+                        ? 'Perpetual Access Unlocked'
+                        : 'دەستگەیشتنی بەردەوام'
+                      : isEnglish
+                      ? `${daysRemaining} Days Remaining`
+                      : `${daysRemaining} ڕۆژ ماوە`
+                    : isEnglish
+                    ? 'Tap to activate Diamond access'
+                    : 'کلیک بکە بۆ چالاكکردنی ئەڵماس'}
+                </Text>
               </View>
-            </View>
+            </Pressable>
 
             {/* Role Privilege Badges */}
             {isOwner && (
@@ -133,19 +163,21 @@ export function SideDrawer({
               )}
 
               <Pressable
+                onPress={() => handleCloseWithAnimation(() => openPlanModal())}
+                style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
+              >
+                <Text style={[styles.menuText, { color: '#0EA5E9' }]}>
+                  {isEnglish ? 'Diamond Access (VIP)' : 'تایبەتمەندی ئەڵماس'}
+                </Text>
+                <Ionicons name="diamond-outline" size={20} color="#0EA5E9" />
+              </Pressable>
+
+              <Pressable
                 onPress={() => handleCloseWithAnimation(() => onSelectTab('chart'))}
                 style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
               >
                 <Text style={styles.menuText}>{t('drawerChart')}</Text>
                 <Ionicons name="stats-chart-outline" size={20} color="#3B50C8" />
-              </Pressable>
-
-              <Pressable
-                onPress={() => handleCloseWithAnimation()}
-                style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
-              >
-                <Text style={[styles.menuText, { color: '#FF6B6B' }]}>{t('drawerPlans')}</Text>
-                <Ionicons name="ribbon-outline" size={20} color="#FF6B6B" />
               </Pressable>
 
               <Pressable

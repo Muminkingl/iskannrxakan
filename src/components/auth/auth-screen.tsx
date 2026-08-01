@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import * as Google from 'expo-auth-session/providers/google';
@@ -21,9 +21,9 @@ export function AuthScreen() {
         <View style={styles.logoWrapper}>
           <IskanLogo size={60} />
         </View>
-        <Text style={styles.authTitle}>Welcome to Iskan Nrxakan</Text>
+        <Text style={styles.authTitle} numberOfLines={1} adjustsFontSizeToFit>Welcome to Iskan Nrxakan</Text>
         <Text style={styles.authDescription}>
-          Sign in to view today&apos;s exchange rates and manage your activation.
+          Sign in to see today's live rates and manage your access.
         </Text>
       </View>
 
@@ -32,10 +32,12 @@ export function AuthScreen() {
 
         <GoogleSignInButton />
 
-        <Pressable disabled style={[styles.appleButton, styles.providerDisabled]}>
-          <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
-          <Text style={styles.appleText}>Apple sign-in coming soon</Text>
-        </Pressable>
+        {Platform.OS === 'ios' && (
+          <Pressable disabled style={[styles.appleButton, styles.providerDisabled]}>
+            <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
+            <Text style={styles.appleText}>Apple sign-in coming soon</Text>
+          </Pressable>
+        )}
 
         <Text style={styles.legal}>
           Your account is only used to protect your activation and rate access.
@@ -137,9 +139,10 @@ const styles = StyleSheet.create({
   },
   authTitle: {
     color: '#3B50C8',
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '900',
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
+    textAlign: 'center',
   },
   authDescription: {
     color: '#64748B',

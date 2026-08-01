@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Chya Exchange",
+    "name": "Iskan Nrxiakan",
     "slug": "iskannrxakan",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,10 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/nrxiskan_4k.png",
-      "bundleIdentifier": "com.trx.iskannrxakan"
+      "bundleIdentifier": "com.trxstudio.iskannrxakan"
     },
     "android": {
-      "package": "com.trx.iskannrxakan",
+      "package": "com.trxstudio.iskannrxakan",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/nrxiskan_4k.png",

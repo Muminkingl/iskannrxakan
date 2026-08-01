@@ -15,6 +15,7 @@ import { NoticeBanner } from '@/components/home/notice-banner';
 import { RatesTable } from '@/components/home/rates-table';
 import { BottomNavBar } from '@/components/navigation/bottom-nav-bar';
 import { SideDrawer } from '@/components/navigation/side-drawer';
+import { DiamondPlanModal } from '@/components/plan/diamond-plan-modal';
 import { SettingsModal } from '@/components/settings/settings-modal';
 import { CURRENCY_SORT_ORDER, DETAILED_RATES } from '@/constants/market-data';
 import { fetchDbAdmins, getUserRole } from '@/lib/auth-roles';
@@ -22,6 +23,7 @@ import { supabase } from '@/lib/supabase';
 import type { RateItem, TabId } from '@/types/market';
 
 import { useLanguage } from '@/context/language-context';
+import { PlanProvider } from '@/context/plan-context';
 import { useTheme } from '@/context/theme-context';
 
 export function HomeScreen({ session }: { session: Session }) {
@@ -133,150 +135,155 @@ export function HomeScreen({ session }: { session: Session }) {
   const currencyRates = liveRates.filter((r) => r.category === 'currency' && r.code !== 'USD');
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#3B50C8" />
+    <PlanProvider session={session} dbAdmins={dbAdmins}>
+      <View style={styles.root}>
+        <StatusBar barStyle="light-content" backgroundColor="#3B50C8" />
 
-      {/* Main Content View Container */}
-      <View style={styles.mainContainer}>
-        {activeTab === 'home' && (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.scrollContent,
-              width >= 720 && styles.desktopContainer,
-              { paddingBottom: insets.bottom + 80 },
-            ]}
-          >
-            {renderHeader()}
-            <NoticeBanner />
-            <RatesTable rates={currencyRates} />
-          </ScrollView>
-        )}
+        {/* Main Content View Container */}
+        <View style={styles.mainContainer}>
+          {activeTab === 'home' && (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.scrollContent,
+                width >= 720 && styles.desktopContainer,
+                { paddingBottom: insets.bottom + 80 },
+              ]}
+            >
+              {renderHeader()}
+              <NoticeBanner />
+              <RatesTable rates={currencyRates} />
+            </ScrollView>
+          )}
 
-        {activeTab === 'updates' && (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.scrollContent,
-              width >= 720 && styles.desktopContainer,
-              { paddingBottom: insets.bottom + 80 },
-            ]}
-          >
-            {renderHeader()}
-            <View style={styles.tabHeadingBlock}>
-              <Text style={styles.tabHeading}>ئاڵوگۆڕی ڕۆژانە</Text>
-              <Text style={styles.tabSubheading}>ئاگاداری و لێدوانەکانی بێنەری بۆرسەی کوردستان</Text>
-            </View>
-            <NoticeBanner />
-          </ScrollView>
-        )}
+          {activeTab === 'updates' && (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.scrollContent,
+                width >= 720 && styles.desktopContainer,
+                { paddingBottom: insets.bottom + 80 },
+              ]}
+            >
+              {renderHeader()}
+              <View style={styles.tabHeadingBlock}>
+                <Text style={styles.tabHeading}>ئاڵوگۆڕی ڕۆژانە</Text>
+                <Text style={styles.tabSubheading}>ئاگاداری و لێدوانەکانی بێنەری بۆرسەی کوردستان</Text>
+              </View>
+              <NoticeBanner />
+            </ScrollView>
+          )}
 
-        {activeTab === 'gold' && (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.scrollContent,
-              width >= 720 && styles.desktopContainer,
-              { paddingBottom: insets.bottom + 80 },
-            ]}
-          >
-            {renderHeader()}
-            <View style={{ paddingTop: 10 }}>
-              <GoldScreen />
-            </View>
-          </ScrollView>
-        )}
+          {activeTab === 'gold' && (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.scrollContent,
+                width >= 720 && styles.desktopContainer,
+                { paddingBottom: insets.bottom + 80 },
+              ]}
+            >
+              {renderHeader()}
+              <View style={{ paddingTop: 10 }}>
+                <GoldScreen />
+              </View>
+            </ScrollView>
+          )}
 
-        {activeTab === 'chart' && (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.scrollContent,
-              width >= 720 && styles.desktopContainer,
-              { paddingBottom: insets.bottom + 80 },
-            ]}
-          >
-            {renderHeader()}
-            <MarketChartScreen />
-          </ScrollView>
-        )}
+          {activeTab === 'chart' && (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.scrollContent,
+                width >= 720 && styles.desktopContainer,
+                { paddingBottom: insets.bottom + 80 },
+              ]}
+            >
+              {renderHeader()}
+              <MarketChartScreen />
+            </ScrollView>
+          )}
 
-        {activeTab === 'calc' && (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.scrollContent,
-              width >= 720 && styles.desktopContainer,
-              { paddingBottom: insets.bottom + 80 },
-            ]}
-          >
-            {renderHeader()}
-            <View style={{ paddingTop: 10 }}>
-              <CurrencyCalculator />
-            </View>
-          </ScrollView>
-        )}
+          {activeTab === 'calc' && (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.scrollContent,
+                width >= 720 && styles.desktopContainer,
+                { paddingBottom: insets.bottom + 80 },
+              ]}
+            >
+              {renderHeader()}
+              <View style={{ paddingTop: 10 }}>
+                <CurrencyCalculator />
+              </View>
+            </ScrollView>
+          )}
 
-        {activeTab === 'admin' && (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.scrollContent,
-              width >= 720 && styles.desktopContainer,
-              { paddingBottom: insets.bottom + 80 },
-            ]}
-          >
-            {renderHeader()}
-            <AdminRatesScreen />
-          </ScrollView>
-        )}
+          {activeTab === 'admin' && (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.scrollContent,
+                width >= 720 && styles.desktopContainer,
+                { paddingBottom: insets.bottom + 80 },
+              ]}
+            >
+              {renderHeader()}
+              <AdminRatesScreen />
+            </ScrollView>
+          )}
+        </View>
+
+        {/* Modular Side Navigation Drawer */}
+        <SideDrawer
+          visible={isDrawerOpen}
+          topInset={insets.top}
+          userRole={userRole}
+          onClose={() => setIsDrawerOpen(false)}
+          onSelectTab={(tab) => setActiveTab(tab)}
+          onOpenCalcModal={() => setIsCalcModalOpen(true)}
+          onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
+          onOpenAboutAppModal={() => setIsAboutAppModalOpen(true)}
+          onOpenOwnerPanelModal={() => setIsOwnerModalOpen(true)}
+          onSignOut={handleSignOut}
+        />
+
+        {/* Policy-Compliant Diamond VIP Modal */}
+        <DiamondPlanModal />
+
+        {/* Pop-up Calculator Modal */}
+        <CalculatorModal
+          visible={isCalcModalOpen}
+          onClose={() => setIsCalcModalOpen(false)}
+        />
+
+        {/* Pop-up Settings Modal */}
+        <SettingsModal
+          visible={isSettingsModalOpen}
+          onClose={() => setIsSettingsModalOpen(false)}
+        />
+
+        {/* Pop-up About App Modal */}
+        <AboutAppModal
+          visible={isAboutAppModalOpen}
+          onClose={() => setIsAboutAppModalOpen(false)}
+        />
+
+        {/* Owner Panel Access Modal (For muminrtx@gmail.com) */}
+        <OwnerPanelModal
+          visible={isOwnerModalOpen}
+          onClose={() => setIsOwnerModalOpen(false)}
+        />
+
+        {/* Modular Bottom Navigation Bar */}
+        <BottomNavBar
+          activeTab={activeTab}
+          bottomInset={insets.bottom}
+          onSelectTab={(tab) => setActiveTab(tab)}
+        />
       </View>
-
-      {/* Modular Side Navigation Drawer */}
-      <SideDrawer
-        visible={isDrawerOpen}
-        topInset={insets.top}
-        userRole={userRole}
-        onClose={() => setIsDrawerOpen(false)}
-        onSelectTab={(tab) => setActiveTab(tab)}
-        onOpenCalcModal={() => setIsCalcModalOpen(true)}
-        onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
-        onOpenAboutAppModal={() => setIsAboutAppModalOpen(true)}
-        onOpenOwnerPanelModal={() => setIsOwnerModalOpen(true)}
-        onSignOut={handleSignOut}
-      />
-
-      {/* Pop-up Calculator Modal */}
-      <CalculatorModal
-        visible={isCalcModalOpen}
-        onClose={() => setIsCalcModalOpen(false)}
-      />
-
-      {/* Pop-up Settings Modal */}
-      <SettingsModal
-        visible={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-      />
-
-      {/* Pop-up About App Modal */}
-      <AboutAppModal
-        visible={isAboutAppModalOpen}
-        onClose={() => setIsAboutAppModalOpen(false)}
-      />
-
-      {/* Owner Panel Access Modal (For muminrtx@gmail.com) */}
-      <OwnerPanelModal
-        visible={isOwnerModalOpen}
-        onClose={() => setIsOwnerModalOpen(false)}
-      />
-
-      {/* Modular Bottom Navigation Bar */}
-      <BottomNavBar
-        activeTab={activeTab}
-        bottomInset={insets.bottom}
-        onSelectTab={(tab) => setActiveTab(tab)}
-      />
-    </View>
+    </PlanProvider>
   );
 }
 

@@ -1,8 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { FlagIcon } from '@/components/common/flag-icon';
 import { getCurrencyName } from '@/constants/translations';
 import { useLanguage } from '@/context/language-context';
+import { usePlan } from '@/context/plan-context';
 import { useTheme } from '@/context/theme-context';
 import type { RateItem } from '@/types/market';
 
@@ -13,6 +15,7 @@ interface RatesTableProps {
 export function RatesTable({ rates }: RatesTableProps) {
   const { colors, isDark } = useTheme();
   const { t, language } = useLanguage();
+  const { isVip, openPlanModal } = usePlan();
   const isEnglish = language === 'english';
 
   return (
@@ -44,8 +47,9 @@ export function RatesTable({ rates }: RatesTableProps) {
       {/* Currency Rows */}
       <View style={styles.tableBody}>
         {rates.map((rate) => (
-          <View
+          <Pressable
             key={rate.id}
+            onPress={!isVip ? openPlanModal : undefined}
             style={[styles.tableRow, { borderBottomColor: colors.borderColor }, isEnglish && styles.rowLtr]}
           >
             {/* CURRENCY */}
@@ -65,18 +69,32 @@ export function RatesTable({ rates }: RatesTableProps) {
 
             {/* BUY */}
             <View style={styles.colBuy}>
-              <View style={[styles.buyPill, isDark && { backgroundColor: '#0F1950', borderColor: '#1E3A8A' }]}>
-                <Text style={[styles.buyPriceText, isDark && { color: '#93C5FD' }]}>{rate.buyRate}</Text>
-              </View>
+              {isVip ? (
+                <View style={[styles.buyPill, isDark && { backgroundColor: '#0F1950', borderColor: '#1E3A8A' }]}>
+                  <Text style={[styles.buyPriceText, isDark && { color: '#93C5FD' }]}>{rate.buyRate}</Text>
+                </View>
+              ) : (
+                <View style={styles.lockedPill}>
+                  <Ionicons name="lock-closed" size={12} color="#0EA5E9" style={{ marginRight: 2 }} />
+                  <Text style={styles.lockedPillText}>••••••</Text>
+                </View>
+              )}
             </View>
 
             {/* SELL */}
             <View style={[styles.colSell, isEnglish && styles.alignRight]}>
-              <View style={[styles.sellPill, isDark && { backgroundColor: '#3B0A0A', borderColor: '#7F1D1D' }]}>
-                <Text style={[styles.sellPriceText, isDark && { color: '#FCA5A5' }]}>{rate.sellRate}</Text>
-              </View>
+              {isVip ? (
+                <View style={[styles.sellPill, isDark && { backgroundColor: '#3B0A0A', borderColor: '#7F1D1D' }]}>
+                  <Text style={[styles.sellPriceText, isDark && { color: '#FCA5A5' }]}>{rate.sellRate}</Text>
+                </View>
+              ) : (
+                <View style={styles.lockedPill}>
+                  <Ionicons name="lock-closed" size={12} color="#0EA5E9" style={{ marginRight: 2 }} />
+                  <Text style={styles.lockedPillText}>••••••</Text>
+                </View>
+              )}
             </View>
-          </View>
+          </Pressable>
         ))}
       </View>
     </View>
@@ -133,4 +151,22 @@ const styles = StyleSheet.create({
   currencyNameKurdish: { fontSize: 14, fontWeight: '800', textAlign: 'right' },
   currencyCodeSub: { fontSize: 10, fontWeight: '700', marginTop: 2, textAlign: 'right' },
   flagContainer: { width: 28, alignItems: 'center', justifyContent: 'center' },
+  lockedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(14, 165, 233, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(14, 165, 233, 0.3)',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minWidth: 82,
+  },
+  lockedPillText: {
+    color: '#0EA5E9',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
 });

@@ -23,6 +23,7 @@ export interface GoldItem {
   karatKurdish: string;
   unitKurdish: string;
   priceFormatted: string;
+  price?: number;
   isDollar?: boolean;
 }
 

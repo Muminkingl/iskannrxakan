@@ -48,7 +48,7 @@ function LoadingScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <Animated.View entering={FadeIn.duration(260)} style={styles.loadingCenter}>
         <Image source={brandMark} contentFit="contain" style={styles.loadingMark} />
-        <Text style={styles.loadingName}>CHYA EXCHANGE</Text>
+        <Text style={styles.loadingName}>Iskan Nrxakan</Text>
         <Text style={styles.loadingTagline}>Clear rates. Every day.</Text>
         <ActivityIndicator color="#3B50C8" size="small" style={styles.loader} />
       </Animated.View>

@@ -89,6 +89,10 @@ export interface TranslationKeys {
   chartStatHigh: string;
   chartStatLow: string;
   chartStatAvg: string;
+  datePickerYear: string;
+  datePickerMonth: string;
+  datePickerDay: string;
+  datePickerConfirm: string;
 
   // Calculator
   calcFrom: string;
@@ -180,6 +184,10 @@ export const TRANSLATIONS: Record<Language, TranslationKeys> = {
     chartStatHigh: 'بەرزترین',
     chartStatLow: 'نزمترین',
     chartStatAvg: 'تێکڕا',
+    datePickerYear: 'ساڵ',
+    datePickerMonth: 'مانگ',
+    datePickerDay: 'ڕۆژ',
+    datePickerConfirm: 'دانانی ڕێکەوت',
     calcFrom: 'لە',
     calcTo: 'بۆ',
     calcPickerFrom: 'هەڵبژاردنی دراوی سەرەتایی',
@@ -263,6 +271,10 @@ export const TRANSLATIONS: Record<Language, TranslationKeys> = {
     chartStatHigh: 'الأعلى',
     chartStatLow: 'الأدنى',
     chartStatAvg: 'المتوسط',
+    datePickerYear: 'السنة',
+    datePickerMonth: 'الشهر',
+    datePickerDay: 'اليوم',
+    datePickerConfirm: 'تأكيد التاريخ',
     calcFrom: 'من',
     calcTo: 'إلى',
     calcPickerFrom: 'اختر العملة الأصلية',
@@ -346,6 +358,10 @@ export const TRANSLATIONS: Record<Language, TranslationKeys> = {
     chartStatHigh: 'High',
     chartStatLow: 'Low',
     chartStatAvg: 'Average',
+    datePickerYear: 'Year',
+    datePickerMonth: 'Month',
+    datePickerDay: 'Day',
+    datePickerConfirm: 'Apply Date',
     calcFrom: 'From',
     calcTo: 'To',
     calcPickerFrom: 'Select Source Currency',

@@ -14,8 +14,11 @@ export const CURRENCY_SORT_ORDER = [
   'DKK',
   'CAD',
   'AUD',
-  'G21',
   'G24',
+  'G22',
+  'G21',
+  'G18',
+  'XAU',
 ];
 
 export const REGIONAL_BORSAMARKETS: BorsaItem[] = [
@@ -39,14 +42,17 @@ export const DETAILED_RATES: RateItem[] = [
   { id: 'cad', code: 'CAD', nameKurdish: 'دۆلاری کەنەدی', unitLabel: 'CAD', flagCode: 'CA', iconName: 'cash-outline', buyRate: '68', sellRate: '70', category: 'currency' },
   { id: 'aud', code: 'AUD', nameKurdish: 'دۆلاری ئوسترالی', unitLabel: 'AUD', flagCode: 'AU', iconName: 'cash-outline', buyRate: '67', sellRate: '68.5', category: 'currency' },
 
-  { id: 'gold21', code: 'G21', nameKurdish: 'زێڕی عەیار ۲۱', unitLabel: '١ میسقاڵ', flagCode: 'GOLD', iconName: 'diamond-outline', buyRate: '545,000', sellRate: '550,000', category: 'gold' },
   { id: 'gold24', code: 'G24', nameKurdish: 'زێڕی عەیار ۲٤', unitLabel: '١ میسقاڵ', flagCode: 'GOLD', iconName: 'diamond-outline', buyRate: '622,000', sellRate: '628,000', category: 'gold' },
+  { id: 'gold22', code: 'G22', nameKurdish: 'زێڕی عەیار ۲۲', unitLabel: '١ میسقاڵ', flagCode: 'GOLD', iconName: 'diamond-outline', buyRate: '900,000', sellRate: '910,000', category: 'gold' },
+  { id: 'gold21', code: 'G21', nameKurdish: 'زێڕی عەیار ۲۱', unitLabel: '١ میسقاڵ', flagCode: 'GOLD', iconName: 'diamond-outline', buyRate: '545,000', sellRate: '550,000', category: 'gold' },
+  { id: 'gold18', code: 'G18', nameKurdish: 'زێڕی عەیار ۱۸', unitLabel: '١ میسقاڵ', flagCode: 'GOLD', iconName: 'diamond-outline', buyRate: '740,000', sellRate: '746,000', category: 'gold' },
+  { id: 'gold_ounce', code: 'XAU', nameKurdish: 'ئۆنسەیەک زێڕ', unitLabel: 'USD', flagCode: 'GOLD', iconName: 'diamond-outline', buyRate: '4,080', sellRate: '4,094', category: 'gold' },
 ];
 
 export const GOLD_RATES: GoldItem[] = [
-  { id: 'g24', karatKurdish: 'زێڕی عەیاره ٢٤', unitKurdish: '١ مسقاڵ', priceFormatted: '994,000 د.ع' },
+  { id: 'g24', karatKurdish: 'زێڕی عەیاره ٢٤', unitKurdish: '١ مسقاڵ', priceFormatted: '628,000 د.ع' },
   { id: 'g22', karatKurdish: 'زێڕی عەیاره ٢٢', unitKurdish: '١ مسقاڵ', priceFormatted: '910,000 د.ع' },
-  { id: 'g21', karatKurdish: 'زێڕی عەیاره ٢١', unitKurdish: '١ مسقاڵ', priceFormatted: '870,000 د.ع' },
+  { id: 'g21', karatKurdish: 'زێڕی عەیاره ٢١', unitKurdish: '١ مسقاڵ', priceFormatted: '550,000 د.ع' },
   { id: 'g18', karatKurdish: 'زێڕی عەیاره ١٨', unitKurdish: '١ مسقاڵ', priceFormatted: '746,000 د.ع' },
   { id: 'ounce', karatKurdish: 'ئۆنسەیەک زێڕ', unitKurdish: '', priceFormatted: '$4,094', isDollar: true },
 ];

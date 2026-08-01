@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { LayoutChangeEvent, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { LayoutChangeEvent, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useLanguage } from '@/context/language-context';
+import { usePlan } from '@/context/plan-context';
 import { useTheme } from '@/context/theme-context';
 import { supabase } from '@/lib/supabase';
 
@@ -19,6 +20,22 @@ export interface CurrencyPairOption {
   id: string;
   label: string;
   baseCurrencyCode: string;
+}
+
+function getTodayString(): string {
+  const d = new Date();
+  return d.toISOString().split('T')[0];
+}
+
+function getDaysAgoString(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().split('T')[0];
+}
+
+function getYearStartString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-01-01`;
 }
 
 const DEFAULT_PAIRS: CurrencyPairOption[] = [
@@ -76,6 +93,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 export function MarketChartScreen() {
   const { colors, isDark } = useTheme();
   const { t, language } = useLanguage();
+  const { isVip, openPlanModal } = usePlan();
   const isEnglish = language === 'english';
 
   const [chartWidth, setChartWidth] = useState(300);
@@ -87,9 +105,33 @@ export function MarketChartScreen() {
   const [selectedPairId, setSelectedPairId] = useState('try_iqd');
   const [customPair, setCustomPair] = useState<CurrencyPairOption | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>('7d');
-  const [startDate, setStartDate] = useState('2026-07-01');
-  const [endDate, setEndDate] = useState('2026-07-27');
+  const [startDate, setStartDate] = useState(getDaysAgoString(30));
+  const [endDate, setEndDate] = useState(getTodayString());
   const [pairPickerVisible, setPairPickerVisible] = useState(false);
+
+  // Date picker state
+  const [datePickerTarget, setDatePickerTarget] = useState<'start' | 'end' | null>(null);
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
+  const [pickerMonth, setPickerMonth] = useState(new Date().getMonth() + 1); // 1-12
+  const [pickerDay, setPickerDay] = useState(new Date().getDate());
+
+  const openDatePicker = (target: 'start' | 'end') => {
+    const src = target === 'start' ? startDate : endDate;
+    const parts = src.split('-');
+    setPickerYear(parseInt(parts[0], 10));
+    setPickerMonth(parseInt(parts[1], 10));
+    setPickerDay(parseInt(parts[2], 10));
+    setDatePickerTarget(target);
+  };
+
+  const confirmDatePicker = () => {
+    const mm = String(pickerMonth).padStart(2, '0');
+    const dd = String(pickerDay).padStart(2, '0');
+    const dateStr = `${pickerYear}-${mm}-${dd}`;
+    if (datePickerTarget === 'start') setStartDate(dateStr);
+    else setEndDate(dateStr);
+    setDatePickerTarget(null);
+  };
 
   const [historyPoints, setHistoryPoints] = useState<HistoryPoint[]>([]);
   const [currentRate, setCurrentRate] = useState<string>('—');
@@ -299,7 +341,7 @@ export function MarketChartScreen() {
       <View style={styles.chartCard}>
         {/* Price Row */}
         <View style={styles.priceRow}>
-          {change !== '—' && (
+          {isVip && change !== '—' && (
             <View style={[styles.changeBadge, { backgroundColor: isPositive ? '#DCFCE7' : '#FEE2E2' }]}>
               <Ionicons
                 name={isPositive ? 'trending-up' : 'trending-down'}
@@ -312,19 +354,36 @@ export function MarketChartScreen() {
             </View>
           )}
 
-          <View style={[styles.priceMetaRight, isEnglish && styles.alignLeft]}>
-            <Text style={[styles.currentPriceText, isEnglish && styles.textLeft]}>{currentRate}</Text>
+          <Pressable
+            onPress={!isVip ? openPlanModal : undefined}
+            style={[styles.priceMetaRight, isEnglish && styles.alignLeft]}
+          >
+            <Text style={[styles.currentPriceText, isEnglish && styles.textLeft]}>
+              {isVip ? currentRate : '••••••••'}
+            </Text>
             <Text style={[styles.currentPriceLabel, isEnglish && styles.textLeft]}>
               {selectedPair?.label ?? '—'} · {t('chartLiveRateLabel')}
             </Text>
-          </View>
+          </Pressable>
         </View>
 
         {/* Real SVG Chart */}
         <View style={styles.svgContainer} onLayout={handleChartLayout}>
-          {isLoading ? (
+          {!isVip ? (
+            <Pressable onPress={openPlanModal} style={styles.vipLockedChartOverlay}>
+              <View style={styles.vipLockedChartBox}>
+                <Ionicons name="diamond" size={28} color="#38BDF8" style={{ marginBottom: 6 }} />
+                <Text style={styles.vipLockedTitle}>
+                  {isEnglish ? 'Diamond Access Required' : 'تایبەتمەندی ئەڵماس (VIP) پێویستە'}
+                </Text>
+                <Text style={styles.vipLockedSub}>
+                  {isEnglish ? 'Tap to view live market trends & charts' : 'کلیک بکە بۆ بەدەستهێنانی شیکاری بۆرسە'}
+                </Text>
+              </View>
+            </Pressable>
+          ) : isLoading ? (
             <View style={styles.loadingOverlay}>
-            <Text style={styles.loadingText}>{t('chartLoading')}</Text>
+              <Text style={styles.loadingText}>{t('chartLoading')}</Text>
             </View>
           ) : hasData ? (
             <Svg width={chartWidth} height={160} viewBox={`0 0 ${chartWidth} 160`}>
@@ -396,38 +455,46 @@ export function MarketChartScreen() {
             <View style={styles.dateInputsRow}>
               <View style={styles.dateInputBox}>
                 <Text style={styles.dateInputLabel}>{t('chartDateTo')}</Text>
-                <View style={styles.dateInputPill}>
-                  <Ionicons name="calendar" size={14} color="#64748B" />
+                <Pressable
+                  onPress={() => openDatePicker('end')}
+                  style={({ pressed }) => [styles.dateInputPill, styles.dateInputPillBtn, pressed && styles.pressed]}
+                >
+                  <Ionicons name="calendar" size={14} color="#3B50C8" />
                   <Text style={styles.dateInputText}>{endDate}</Text>
-                </View>
+                  <Ionicons name="chevron-down" size={12} color="#94A3B8" />
+                </Pressable>
               </View>
 
               <Text style={styles.dateArrow}>←</Text>
 
               <View style={styles.dateInputBox}>
                 <Text style={styles.dateInputLabel}>{t('chartDateFrom')}</Text>
-                <View style={styles.dateInputPill}>
-                  <Ionicons name="calendar" size={14} color="#64748B" />
+                <Pressable
+                  onPress={() => openDatePicker('start')}
+                  style={({ pressed }) => [styles.dateInputPill, styles.dateInputPillBtn, pressed && styles.pressed]}
+                >
+                  <Ionicons name="calendar" size={14} color="#3B50C8" />
                   <Text style={styles.dateInputText}>{startDate}</Text>
-                </View>
+                  <Ionicons name="chevron-down" size={12} color="#94A3B8" />
+                </Pressable>
               </View>
             </View>
 
             <View style={styles.presetsRow}>
               <Pressable
-                onPress={() => { setStartDate('2026-07-20'); setEndDate('2026-07-27'); }}
+                onPress={() => { setStartDate(getDaysAgoString(7)); setEndDate(getTodayString()); }}
                 style={({ pressed }) => [styles.presetPill, pressed && styles.pressed]}
               >
                 <Text style={styles.presetText}>{t('chartPresetLastWeek')}</Text>
               </Pressable>
               <Pressable
-                onPress={() => { setStartDate('2026-06-27'); setEndDate('2026-07-27'); }}
+                onPress={() => { setStartDate(getDaysAgoString(30)); setEndDate(getTodayString()); }}
                 style={({ pressed }) => [styles.presetPill, pressed && styles.pressed]}
               >
                 <Text style={styles.presetText}>{t('chartPresetLastMonth')}</Text>
               </Pressable>
               <Pressable
-                onPress={() => { setStartDate('2026-01-01'); setEndDate('2026-07-27'); }}
+                onPress={() => { setStartDate(getYearStartString()); setEndDate(getTodayString()); }}
                 style={({ pressed }) => [styles.presetPill, pressed && styles.pressed]}
               >
                 <Text style={styles.presetText}>{t('chartPresetThisYear')}</Text>
@@ -452,6 +519,124 @@ export function MarketChartScreen() {
           <Text style={styles.statValue}>{avg}</Text>
         </View>
       </View>
+
+      {/* ─── Date Picker Modal ─────────────────────────────────────────────── */}
+      <Modal
+        visible={datePickerTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDatePickerTarget(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.backdrop} onPress={() => setDatePickerTarget(null)} />
+          <View style={styles.datePickerCard}>
+            {/* Header */}
+            <View style={styles.pickerHeader}>
+              <Pressable
+                hitSlop={12}
+                onPress={() => setDatePickerTarget(null)}
+                style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
+              >
+                <Ionicons name="close" size={22} color="#64748B" />
+              </Pressable>
+              <Text style={styles.pickerTitle}>
+                {datePickerTarget === 'start' ? t('chartDateFrom') : t('chartDateTo')}
+              </Text>
+            </View>
+
+            {/* 3-Column Scroll Pickers */}
+            <View style={styles.dateColumnsRow}>
+              {/* Year */}
+              <View style={styles.dateColumnWrap}>
+                <Text style={styles.dateColumnLabel}>{t('datePickerYear')}</Text>
+                <ScrollView
+                  style={styles.dateColumn}
+                  showsVerticalScrollIndicator={false}
+                  snapToInterval={44}
+                  decelerationRate="fast"
+                >
+                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((yr) => (
+                    <Pressable
+                      key={yr}
+                      onPress={() => setPickerYear(yr)}
+                      style={[styles.dateColumnItem, pickerYear === yr && styles.dateColumnItemActive]}
+                    >
+                      <Text style={[styles.dateColumnItemText, pickerYear === yr && styles.dateColumnItemTextActive]}>
+                        {yr}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Month */}
+              <View style={styles.dateColumnWrap}>
+                <Text style={styles.dateColumnLabel}>{t('datePickerMonth')}</Text>
+                <ScrollView
+                  style={styles.dateColumn}
+                  showsVerticalScrollIndicator={false}
+                  snapToInterval={44}
+                  decelerationRate="fast"
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((mo) => {
+                    const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    return (
+                      <Pressable
+                        key={mo}
+                        onPress={() => setPickerMonth(mo)}
+                        style={[styles.dateColumnItem, pickerMonth === mo && styles.dateColumnItemActive]}
+                      >
+                        <Text style={[styles.dateColumnItemText, pickerMonth === mo && styles.dateColumnItemTextActive]}>
+                          {names[mo - 1]}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
+              {/* Day */}
+              <View style={styles.dateColumnWrap}>
+                <Text style={styles.dateColumnLabel}>{t('datePickerDay')}</Text>
+                <ScrollView
+                  style={styles.dateColumn}
+                  showsVerticalScrollIndicator={false}
+                  snapToInterval={44}
+                  decelerationRate="fast"
+                >
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                    <Pressable
+                      key={day}
+                      onPress={() => setPickerDay(day)}
+                      style={[styles.dateColumnItem, pickerDay === day && styles.dateColumnItemActive]}
+                    >
+                      <Text style={[styles.dateColumnItemText, pickerDay === day && styles.dateColumnItemTextActive]}>
+                        {String(day).padStart(2, '0')}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+
+            {/* Preview */}
+            <View style={styles.datePreviewRow}>
+              <Text style={styles.datePreviewText}>
+                {pickerYear}-{String(pickerMonth).padStart(2, '0')}-{String(pickerDay).padStart(2, '0')}
+              </Text>
+            </View>
+
+            {/* Confirm */}
+            <Pressable
+              onPress={confirmDatePicker}
+              style={({ pressed }) => [styles.dateConfirmBtn, pressed && styles.pressed]}
+            >
+              <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+              <Text style={styles.dateConfirmText}>{t('datePickerConfirm')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* Custom Currency Pair Selector Modal */}
       <Modal
@@ -834,5 +1019,120 @@ const styles = StyleSheet.create({
 
   pressed: {
     opacity: 0.75,
+  },
+  vipLockedChartOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  vipLockedChartBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vipLockedTitle: {
+    color: '#F8FAFC',
+    fontSize: 15,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  vipLockedSub: {
+    color: '#38BDF8',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  // Date pill button (pressable variant of dateInputPill)
+  dateInputPillBtn: {
+    borderColor: '#BFDBFE',
+    backgroundColor: '#EFF6FF',
+  },
+  // Date picker modal card
+  datePickerCard: {
+    width: '90%',
+    maxWidth: 400,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    gap: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  dateColumnsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  dateColumnWrap: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  dateColumnLabel: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  dateColumn: {
+    height: 176,
+    width: '100%',
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  dateColumnItem: {
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    marginHorizontal: 2,
+    marginVertical: 1,
+  },
+  dateColumnItemActive: {
+    backgroundColor: '#2563EB',
+    borderRadius: 10,
+  },
+  dateColumnItemText: {
+    color: '#475569',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dateColumnItemTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  datePreviewRow: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    padding: 10,
+    alignItems: 'center',
+  },
+  datePreviewText: {
+    color: '#0F172A',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  dateConfirmBtn: {
+    backgroundColor: '#2563EB',
+    borderRadius: 14,
+    paddingVertical: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  dateConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });

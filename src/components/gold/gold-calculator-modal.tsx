@@ -1,28 +1,47 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useLanguage } from '@/context/language-context';
+import { usePlan } from '@/context/plan-context';
+import type { GoldItem } from '@/types/market';
 
 interface GoldCalculatorModalProps {
   visible: boolean;
   onClose: () => void;
+  goldRates?: GoldItem[];
 }
 
-export function GoldCalculatorModal({ visible, onClose }: GoldCalculatorModalProps) {
+export function GoldCalculatorModal({ visible, onClose, goldRates }: GoldCalculatorModalProps) {
   const { t, language } = useLanguage();
+  const { isVip, openPlanModal } = usePlan();
   const isEnglish = language === 'english';
 
   const [unitMode, setUnitMode] = useState<'mithqal' | 'gram'>('mithqal');
   const [quantityText, setQuantityText] = useState('');
 
+  // Lock behind VIP plan: if non-VIP somehow opens the modal, immediately close it & trigger Plan Modal
+  useEffect(() => {
+    if (visible && !isVip) {
+      onClose();
+      openPlanModal();
+    }
+  }, [visible, isVip]);
+
+  if (!isVip) return null;
+
   const count = parseFloat(quantityText) || 0;
 
-  // Rates per Mithqal in IQD
-  const price18 = 746000;
-  const price21 = 870000;
-  const price22 = 910000;
-  const price24 = 994000;
+  // Extract live prices from DB goldRates prop (fallback to default standard prices)
+  const g18Rate = goldRates?.find((r) => r.id === 'g18')?.price || 746000;
+  const g21Rate = goldRates?.find((r) => r.id === 'g21')?.price || 870000;
+  const g22Rate = goldRates?.find((r) => r.id === 'g22')?.price || 910000;
+  const g24Rate = goldRates?.find((r) => r.id === 'g24')?.price || 994000;
+
+  const price18 = g18Rate;
+  const price21 = g21Rate;
+  const price22 = g22Rate;
+  const price24 = g24Rate;
 
   const multiplier = unitMode === 'mithqal' ? count : count / 5;
   const currencyUnit = isEnglish ? 'IQD' : 'د.ع';

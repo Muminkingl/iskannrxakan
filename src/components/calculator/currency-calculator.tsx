@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FlagIcon } from '@/components/common/flag-icon';
 import { getCurrencyName } from '@/constants/translations';
 import { useLanguage } from '@/context/language-context';
+import { usePlan } from '@/context/plan-context';
 import { useTheme } from '@/context/theme-context';
 import { supabase } from '@/lib/supabase';
 
@@ -32,11 +33,18 @@ export const INITIAL_CURRENCIES: CurrencyOption[] = [
   { code: 'AUD', nameKurdish: 'دۆلاری ئوسترالی', flagCode: 'AU', rateInIqd: 981.5 },
 ];
 
+// ─── Module-level rate cache (shared across re-mounts, 5-min TTL) ──────────
+let _ratesCache: { data: CurrencyOption[]; fetchedAt: number } | null = null;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 export function CurrencyCalculator() {
   const { colors, isDark } = useTheme();
   const { t, language } = useLanguage();
+  const { isVip, openPlanModal } = usePlan();
   const isEnglish = language === 'english';
-  const [currencies, setCurrencies] = useState<CurrencyOption[]>(INITIAL_CURRENCIES);
+  const [currencies, setCurrencies] = useState<CurrencyOption[]>(
+    _ratesCache?.data ?? INITIAL_CURRENCIES
+  );
   const [inputText, setInputText] = useState('100');
   const [fromCurrency, setFromCurrency] = useState<CurrencyOption>(INITIAL_CURRENCIES[0]); // USD
   const [toCurrency, setToCurrency] = useState<CurrencyOption>(INITIAL_CURRENCIES[1]); // IQD
@@ -46,12 +54,24 @@ export function CurrencyCalculator() {
 
   // Fetch live rates from DB & subscribe to Realtime
   useEffect(() => {
-    fetchRatesFromDb();
+    const now = Date.now();
+    const isCacheValid = _ratesCache && now - _ratesCache.fetchedAt < CACHE_TTL_MS;
+
+    if (!isCacheValid) {
+      // Cache is stale or missing — fetch now
+      fetchRatesFromDb();
+    } else {
+      // Cache is fresh — restore selected currencies from cache
+      const cached = _ratesCache!.data;
+      setFromCurrency((prev) => cached.find((u) => u.code === prev.code) || prev);
+      setToCurrency((prev) => cached.find((u) => u.code === prev.code) || prev);
+    }
 
     const channel = supabase
       .channel('calc_rates_realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rates' }, () => {
-        fetchRatesFromDb();
+        // DB changed — always bypass cache and re-fetch
+        fetchRatesFromDb(true);
       })
       .subscribe();
 
@@ -60,7 +80,12 @@ export function CurrencyCalculator() {
     };
   }, []);
 
-  const fetchRatesFromDb = async () => {
+  const fetchRatesFromDb = async (forceRefresh = false) => {
+    // Skip if cache is still valid and not forced
+    if (!forceRefresh && _ratesCache && Date.now() - _ratesCache.fetchedAt < CACHE_TTL_MS) {
+      return;
+    }
+
     try {
       const { data, error } = await supabase.from('rates').select('*');
       if (error || !data || data.length === 0) return;
@@ -85,6 +110,9 @@ export function CurrencyCalculator() {
         return { ...c, rateInIqd: (sell / 100) * usdSellInIqd };
       });
 
+      // Store in module-level cache
+      _ratesCache = { data: updated, fetchedAt: Date.now() };
+
       setCurrencies(updated);
 
       // Refresh currently selected from/to
@@ -95,7 +123,13 @@ export function CurrencyCalculator() {
     }
   };
 
+
   const handleKeyPress = (val: string) => {
+    if (!isVip) {
+      openPlanModal();
+      return;
+    }
+
     if (val === 'C') {
       setInputText('0');
       return;
@@ -123,6 +157,10 @@ export function CurrencyCalculator() {
   };
 
   const handleSwap = () => {
+    if (!isVip) {
+      openPlanModal();
+      return;
+    }
     const temp = fromCurrency;
     setFromCurrency(toCurrency);
     setToCurrency(temp);
@@ -147,22 +185,27 @@ export function CurrencyCalculator() {
   const rawResult = (numericInput * fromCurrency.rateInIqd) / toCurrency.rateInIqd;
 
   // Format result
-  const formattedResult =
-    toCurrency.code === 'IQD'
-      ? Math.round(rawResult).toLocaleString()
-      : rawResult.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formattedResult = !isVip
+    ? '••••••••'
+    : toCurrency.code === 'IQD'
+    ? Math.round(rawResult).toLocaleString()
+    : rawResult.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // Rate ratio text e.g. "1 USD = 1,503 IQD"
   const ratioValue = fromCurrency.rateInIqd / toCurrency.rateInIqd;
-  const formattedRatio =
-    toCurrency.code === 'IQD'
-      ? Math.round(ratioValue).toLocaleString()
-      : ratioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  const formattedRatio = !isVip
+    ? '••••'
+    : toCurrency.code === 'IQD'
+    ? Math.round(ratioValue).toLocaleString()
+    : ratioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
   return (
     <View style={styles.container}>
       {/* Sleek Live Exchange Header Badge */}
-      <View style={[styles.rateHeaderCard, { backgroundColor: colors.cardBg, borderColor: colors.borderColor }, isEnglish && styles.rowLtr]}>
+      <Pressable
+        onPress={!isVip ? openPlanModal : undefined}
+        style={[styles.rateHeaderCard, { backgroundColor: colors.cardBg, borderColor: colors.borderColor }, isEnglish && styles.rowLtr]}
+      >
         <View style={[styles.liveIndicator, isEnglish && styles.rowLtr]}>
           <View style={styles.greenDot} />
           <Text style={[styles.liveText, { color: colors.textSecondary }]}>{t('calcLiveRate')}</Text>
@@ -171,7 +214,7 @@ export function CurrencyCalculator() {
         <Text style={[styles.ratePillText, { color: colors.textPrimary }]}>
           1 {fromCurrency.code} = {formattedRatio} {toCurrency.code}
         </Text>
-      </View>
+      </Pressable>
 
       {/* Main Conversion Card */}
       <View style={[styles.conversionCard, { backgroundColor: colors.cardBg, borderColor: colors.borderColor }]}>
