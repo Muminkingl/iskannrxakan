@@ -219,9 +219,9 @@ const styles = StyleSheet.create({
     height: 32,
   },
   brandTitle: {
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 1.2,
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0,
   },
   skipText: {
     fontSize: 14,

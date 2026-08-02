@@ -49,7 +49,7 @@ function LoadingScreen() {
       <Animated.View entering={FadeIn.duration(260)} style={styles.loadingCenter}>
         <Image source={brandMark} contentFit="contain" style={styles.loadingMark} />
         <Text style={styles.loadingName}>Iskan Nrxakan</Text>
-        <Text style={styles.loadingTagline}>Clear rates. Every day.</Text>
+        <Text style={styles.loadingTagline}>Know the rate before you trade.</Text>
         <ActivityIndicator color="#3B50C8" size="small" style={styles.loader} />
       </Animated.View>
     </View>
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
   loadingRoot: { flex: 1, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   loadingCenter: { alignItems: 'center' },
   loadingMark: { width: 92, height: 92 },
-  loadingName: { color: '#3B50C8', fontSize: 14, letterSpacing: 2.2, fontWeight: '900', marginTop: 16 },
-  loadingTagline: { color: '#7C7C87', fontSize: 12, marginTop: 6 },
+  loadingName: { color: '#3B50C8', fontSize: 20, fontWeight: '600', letterSpacing: 0, marginTop: 14 },
+  loadingTagline: { color: '#94A3B8', fontSize: 13, marginTop: 5 },
   loader: { marginTop: 34 },
 });

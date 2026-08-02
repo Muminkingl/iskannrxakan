@@ -58,7 +58,11 @@ export function RatesTable({ rates }: RatesTableProps) {
                 <FlagIcon code={rate.flagCode} size={18} />
               </View>
               <View style={[styles.currencyMetaRight, isEnglish && styles.alignLeft]}>
-                <Text style={[styles.currencyNameKurdish, { color: colors.textPrimary }, isEnglish && styles.textLeft]}>
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={[styles.currencyNameKurdish, { color: colors.textPrimary }, isEnglish && styles.textLeft]}
+                >
                   {getCurrencyName(rate.code, rate.nameKurdish, language)}
                 </Text>
                 <Text style={[styles.currencyCodeSub, { color: colors.textSecondary }, isEnglish && styles.textLeft]}>
@@ -146,10 +150,10 @@ const styles = StyleSheet.create({
   colBuy: { flex: 1, alignItems: 'center' },
   buyPill: { backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#C7D2FE', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, minWidth: 82, alignItems: 'center' },
   buyPriceText: { color: '#2563EB', fontSize: 14, fontWeight: '900' },
-  colCurrency: { flex: 1.4, flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
-  currencyMetaRight: { alignItems: 'flex-end' },
-  currencyNameKurdish: { fontSize: 14, fontWeight: '800', textAlign: 'right' },
-  currencyCodeSub: { fontSize: 10, fontWeight: '700', marginTop: 2, textAlign: 'right' },
+  colCurrency: { flex: 1.6, flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
+  currencyMetaRight: { alignItems: 'flex-end', flex: 1 },
+  currencyNameKurdish: { fontSize: 13, fontWeight: '600', textAlign: 'right' },
+  currencyCodeSub: { fontSize: 10, fontWeight: '500', marginTop: 2, textAlign: 'right', color: '#94A3B8' },
   flagContainer: { width: 28, alignItems: 'center', justifyContent: 'center' },
   lockedPill: {
     flexDirection: 'row',
