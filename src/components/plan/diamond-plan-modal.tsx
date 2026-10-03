@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Clipboard,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -11,23 +12,17 @@ import {
 } from 'react-native';
 import Animated, { FadeInUp, ZoomIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 
 import { useLanguage } from '@/context/language-context';
 import { usePlan } from '@/context/plan-context';
 import { useTheme } from '@/context/theme-context';
-import {
-  FIB_QR_IMAGE_URL,
-  FIB_ACCOUNT_NUMBER,
-} from '@/constants/config';
-import { generateUserCode } from '@/utils/user-code';
 
 type ModalView = 'features' | 'payment' | 'pending' | 'success';
 
 const getModalTexts = (lang: 'kurdish' | 'arabic' | 'english') => {
   if (lang === 'arabic') {
     return {
-      planTitle: 'الاشتراك الماسي (VIP)',
+      planTitle: 'حساب (VIP)',
       perpetualAccess: 'وصول دائم مفعل',
       activeDaysLeft: (d: number) => `نشط · متبقي ${d} يوم`,
       features: [
@@ -36,33 +31,31 @@ const getModalTexts = (lang: 'kurdish' | 'arabic' | 'english') => {
         { title: 'محاسبة تحويل سريعة', sub: 'حسابات وتحويلات مباشرة' },
         { title: 'مخططات وتحليلات السوق', sub: 'بيانات وأرشيف حركة السوق' },
       ],
-      activateFib: 'التفعيل عبر تحويل FIB',
+      activateKey: 'تفعيل الحساب',
       continueBrowsing: 'الاستمرار في التصفح',
       back: 'رجوع',
-      paymentTitle: 'تحويل الأموال عبر FIB',
-      paymentSub: 'أرسل المبلغ عبر تطبيق FIB إلى هذا الرقم',
-      transferAmount: 'مبلغ التحويل: ٢٥٬٠٠٠ د.ع',
-      accountName: 'اسم الحساب',
-      ibanLabel: 'رقم الحساب / IBAN',
-      userCodeLabel: 'رمز المعرف الخاص بك (اكتبه في الملاحظة)',
-      qrHint: 'امسح رمز QR أو انسخ الرقم',
-      copyCode: 'نسخ الرمز',
+      activationTitle: 'رمز حسابك الخاص',
+      activationSub: 'لتفعيل حسابك، أرسل هذا الرمز إلينا عبر واتساب',
+      userCodeLabel: 'رمز حسابك',
+      instructionNote: 'اضغط على زر واتساب أدناه للتواصل معنا مباشرة وإتمام تفعيل حسابك فوراً.',
+      contactSupportWhatsApp: 'تواصل معنا عبر واتساب للتفعيل',
+      copyCode: 'نسخ',
       copiedText: 'تم النسخ!',
-      submitPayment: 'أرسلت المبلغ',
-      submitting: 'جاري الإرسال...',
+      submitVerification: 'التحقق من حالة الحساب',
+      submitting: 'جاري التحقق...',
       backToApp: 'الرجوع للتطبيق',
       pendingTitle: 'طلبك قيد المراجعة',
-      pendingSub: 'فريقنا يقوم بمراجعة عملية التحويل. سيتم تفعيل حساب VIP الخاص بك فور التأكد.',
-      successTitle: 'تم تسجيل طلبك',
-      successSub: 'تم إستلام طلبك بنجاح. سيتم تفعيل اشتراك الماس (VIP) بعد مراجعة عملية التحويل.',
+      pendingSub: 'فريقنا يقوم بمراجعة طلبك، وسيتم تفعيل حساب VIP الخاص بك فور التأكيد.',
+      successTitle: 'تم استلام طلبك',
+      successSub: 'تم استلام طلبك بنجاح، وسيتم فتح ميزات VIP بعد التأكيد مباشرة.',
       gotIt: 'موافق',
-      errorSubmit: 'تعذر إرسال الطلب. يرجى المحاولة مرة أخرى.',
+      errorSubmit: 'تعذر إرسال الطلب، يرجى المحاولة مرة أخرى.',
     };
   }
 
   if (lang === 'english') {
     return {
-      planTitle: 'DIAMOND ACCESS (VIP)',
+      planTitle: 'VIP ACCOUNT',
       perpetualAccess: 'Perpetual Access Active',
       activeDaysLeft: (d: number) => `Active · ${d} Days Left`,
       features: [
@@ -71,25 +64,23 @@ const getModalTexts = (lang: 'kurdish' | 'arabic' | 'english') => {
         { title: 'Precision Converter', sub: 'Instant live conversions' },
         { title: 'Trend Analytics Charts', sub: 'Historical market data' },
       ],
-      activateFib: 'Activate via FIB Transfer',
+      activateKey: 'Activate VIP Account',
       continueBrowsing: 'Continue Browsing',
       back: 'Back',
-      paymentTitle: 'Pay via FIB Bank',
-      paymentSub: 'Send payment via FIB app to this account number',
-      transferAmount: 'Transfer amount: 25,000 IQD',
-      accountName: 'Account Name',
-      ibanLabel: 'IBAN / Account',
-      userCodeLabel: 'Your Payment ID Code (Paste in FIB Note)',
-      qrHint: 'Scan QR code or copy the number',
-      copyCode: 'Copy Code',
+      activationTitle: 'Your Activation Code',
+      activationSub: 'Send this code to our support team on WhatsApp to activate your VIP access',
+      userCodeLabel: 'Your Personal Code',
+      instructionNote: 'Tap the WhatsApp button below to contact us directly and activate your VIP access.',
+      contactSupportWhatsApp: 'Message Us on WhatsApp to Activate',
+      copyCode: 'Copy',
       copiedText: 'Copied!',
-      submitPayment: "I've Sent the Payment",
-      submitting: 'Submitting...',
+      submitVerification: 'Check Activation Status',
+      submitting: 'Checking...',
       backToApp: 'Back to App',
-      pendingTitle: 'Payment Under Review',
-      pendingSub: 'Our team is reviewing your transfer notification. Your VIP access will be activated shortly.',
+      pendingTitle: 'Activation Under Review',
+      pendingSub: 'Our team is reviewing your activation request. Your VIP access will be unlocked shortly.',
       successTitle: 'Request Received',
-      successSub: 'Our team has been notified. Your Diamond Access will be activated after we confirm your payment.',
+      successSub: 'Your activation request has been received and will be approved shortly.',
       gotIt: 'Got it',
       errorSubmit: 'Could not submit your request. Please try again.',
     };
@@ -97,7 +88,7 @@ const getModalTexts = (lang: 'kurdish' | 'arabic' | 'english') => {
 
   // Default: Kurdish
   return {
-    planTitle: 'ئەکاونتی ئەڵماس (VIP)',
+    planTitle: 'ئەکاونتی (VIP)',
     perpetualAccess: 'دەستگەیشتنی بەردەوام',
     activeDaysLeft: (d: number) => `چالاکە · ${d} ڕۆژ ماوە`,
     features: [
@@ -106,25 +97,23 @@ const getModalTexts = (lang: 'kurdish' | 'arabic' | 'english') => {
       { title: 'گۆڕەرەوەی خێرای دراو', sub: 'خەمڵاندن و گۆڕینەوەی کاتی' },
       { title: 'چارت و شیکارییەکانی بازاڕ', sub: 'ئەرشیفی گۆڕانکارییەکانی بازاڕ' },
     ],
-    activateFib: 'چالاكکردن لە ڕێگەی FIB',
+    activateKey: 'چالاککردنی ئەکاونت',
     continueBrowsing: 'گەڕانەوە بۆ ئەپ',
     back: 'گەڕانەوە',
-    paymentTitle: 'پارەدان لە ڕێگەی FIB',
-    paymentSub: 'پارە لە ڕێگەی ئەپی FIB بنێرە بۆ ئەم ژمارەیە',
-    transferAmount: 'بڕی گواستنەوە: ٢٥٬٠٠٠ د.ع',
-    accountName: 'ناوی ئەکاونت',
-    ibanLabel: 'ژمارەی ئەکاونت',
-    userCodeLabel: 'کۆدی ناسێنەری تۆ (لە تێبینی FIB بنووسە)',
-    qrHint: 'کۆدی QR سکان بکە یان ژمارەکە کۆپی بکە',
+    activationTitle: 'کۆدی تایبەتی ئەکاونتەکەت',
+    activationSub: 'بۆ چالاککردنی ئەکاونتەکەت، ئەم کۆدە لە ڕێگەی واتسئاپ بۆ ئێمە بنێرە',
+    userCodeLabel: 'کۆدی ئەکاونتەکەت',
+    instructionNote: 'کلیک لەسەر دوگمەی واتسئاپ بکە بۆ ئەوەی ڕاستەوخۆ پەیوەندیمان پێوە بکەیت و ئەکاونتەکەت چالاک بکەیت.',
+    contactSupportWhatsApp: 'نامە بنێرە لە واتسئاپ بۆ چالاککردن',
     copyCode: 'کۆپیکردن',
     copiedText: 'کۆپیکرا!',
-    submitPayment: 'پارەم نارد',
-    submitting: 'لە ناردندایە...',
+    submitVerification: 'پشکنینی دۆخی ئەکاونت',
+    submitting: 'لە پشکنیندایە...',
     backToApp: 'گەڕانەوە بۆ ئەپ',
-    pendingTitle: 'داواکارییەکەت لەپشکنیندایە',
+    pendingTitle: 'داواکارییەکەت لە پشکنیندایە',
     pendingSub: 'تیمەکەمان بەدواداچوون بۆ داواکارییەکەت دەکات. دوای دڵنیابوونەوە، ئەکاونتی VIPت بۆ چالاک دەکرێت.',
-    successTitle: 'داواکارییەکەت تۆمارکرا',
-    successSub: 'داواکارییەکەت گەیشتە تیمەکەمان. پاش بەدواداچوونی مامەڵەکەت، ئەکاونتی ئەڵماس (VIP) چالاک دەکرێت.',
+    successTitle: 'داواکارییەکەت گەیشت',
+    successSub: 'داواکارییەکەت بە سەرکەوتوویی تۆمارکرا. پاش پەسەندکردن، ئەکاونتی VIP چالاک دەبێت.',
     gotIt: 'باشە',
     errorSubmit: 'داواکارییەکە نەنێردرا. تکایە دووبارە هەوڵبدەرەوە.',
   };
@@ -137,18 +126,26 @@ export function DiamondPlanModal() {
     isPlanModalOpen,
     closePlanModal,
     pendingPaymentExists,
+    userCode,
     submitPaymentRequest,
+    refreshSubscriptionStatus,
   } = usePlan();
   const { isDark } = useTheme();
   const { language } = useLanguage();
   const txt = getModalTexts(language as 'kurdish' | 'arabic' | 'english');
 
-  const [view, setView] = useState<ModalView>(pendingPaymentExists ? 'pending' : 'features');
+  const [view, setView] = useState<ModalView>('features');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [copiedNumber, setCopiedNumber] = useState(false);
 
-  const userCode = generateUserCode('current-user');
+  // Set initial view based on whether a pending payment exists when modal is opened
+  useEffect(() => {
+    if (isPlanModalOpen) {
+      setView(pendingPaymentExists ? 'pending' : 'features');
+      setIsSubmitting(false);
+      setCopied(false);
+    }
+  }, [isPlanModalOpen, pendingPaymentExists]);
 
   if (!isPlanModalOpen) return null;
 
@@ -182,24 +179,50 @@ export function DiamondPlanModal() {
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleCopyNumber = () => {
-    Clipboard.setString(FIB_ACCOUNT_NUMBER);
-    setCopiedNumber(true);
-    setTimeout(() => setCopiedNumber(false), 2500);
-  };
+  const handleOpenWhatsApp = () => {
+    const msg =
+      language === 'arabic'
+        ? `مرحباً! أود تفعيل حساب VIP. رمز حسابي هو: ${userCode}`
+        : language === 'english'
+        ? `Hello! I would like to activate VIP access. My code is: ${userCode}`
+        : `سڵاو! دەمەوێت ئەکاونتی VIP چالاک بکەم. کۆدی ئەکاونتەکەم: ${userCode}`;
 
+    const url = `https://wa.me/9647510201840?text=${encodeURIComponent(msg)}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert(
+        language === 'english' ? 'Error' : 'هەڵە',
+        language === 'english'
+          ? 'Could not open WhatsApp. Please contact +964 751 020 1840 directly.'
+          : 'نەتوانرا واتسئاپ بکرێتەوە. تکایە پەیوەندی بکە بە ٠٧٥١٠٢٠١٨٤٠.'
+      );
+    });
+  };
 
   const handleSendPayment = async () => {
     setIsSubmitting(true);
-    const result = await submitPaymentRequest(userCode);
-    setIsSubmitting(false);
+    try {
+      await refreshSubscriptionStatus();
+      const requestResult = await submitPaymentRequest(userCode);
 
-    if (result === 'submitted') {
-      setView('success');
-    } else if (result === 'already_pending') {
-      setView('pending');
-    } else {
-      Alert.alert(language === 'english' ? 'Error' : 'هەڵە', txt.errorSubmit);
+      if (requestResult === 'submitted' || requestResult === 'already_pending') {
+        setView('pending');
+      } else {
+        Alert.alert(
+          language === 'english' ? 'Could not submit' : 'هەڵە',
+          language === 'english'
+            ? 'We could not save your activation request. Please check your connection and try again.'
+            : 'داواکارییەکەت پاشەکەوت نەکرا. تکایە پەیوەندی ئینتەرنێتەکەت بپشکنە و دووبارە هەوڵ بدەرەوە.'
+        );
+      }
+    } catch {
+      Alert.alert(
+        language === 'english' ? 'Error' : 'هەڵە',
+        language === 'english'
+          ? 'Could not check activation status. Please try again.'
+          : 'نەتوانرا دۆخی چالاکبوون پشکنینی بکرێت. تکایە دووبارە هەوڵبدەرەوە.'
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -280,8 +303,8 @@ export function DiamondPlanModal() {
                       onPress={() => setView('payment')}
                       style={({ pressed }) => [styles.activateBtn, pressed && styles.pressed]}
                     >
-                      <Ionicons name="qr-code-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                      <Text style={styles.activateBtnText}>{txt.activateFib}</Text>
+                      <Ionicons name="key-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                      <Text style={styles.activateBtnText}>{txt.activateKey}</Text>
                     </Pressable>
 
                     <Pressable onPress={handleClose} style={({ pressed }) => [styles.dismissBtn, pressed && styles.pressed]}>
@@ -292,7 +315,7 @@ export function DiamondPlanModal() {
               </Animated.View>
             )}
 
-            {/* ─── PAYMENT VIEW (Sleek Native Fintech Checkout) ──────── */}
+            {/* ─── ACTIVATION KEY VIEW (Clean Enterprise Key Flow) ──────── */}
             {currentView === 'payment' && (
               <Animated.View entering={FadeInUp.delay(60)}>
                 {/* Back Button Header */}
@@ -304,81 +327,66 @@ export function DiamondPlanModal() {
                   <Text style={[styles.backText, { color: t.subColor }]}>{txt.back}</Text>
                 </Pressable>
 
-                {/* Bank Header Badge */}
-                <View style={styles.fibHeaderBadge}>
-                  <View style={styles.fibIconCircle}>
-                    <Ionicons name="card" size={20} color="#3B82F6" />
+                {/* Key Header Badge */}
+                <View style={styles.activationHeaderBadge}>
+                  <View style={[styles.activationIconCircle, { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.15)' : '#E0F2FE' }]}>
+                    <Ionicons name="key-outline" size={22} color="#0284C7" />
                   </View>
-                  <View>
-                    <Text style={[styles.fibHeaderTitle, { color: t.titleColor }]}>First Iraqi Bank (FIB)</Text>
-                    <Text style={[styles.fibHeaderSub, { color: t.subColor }]}>{txt.paymentTitle}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.activationHeaderTitle, { color: t.titleColor }]}>{txt.activationTitle}</Text>
+                    <Text style={[styles.activationHeaderSub, { color: t.subColor }]}>{txt.activationSub}</Text>
                   </View>
                 </View>
 
-                {/* Unified FIB Payment Card */}
+                {/* Unified Activation Card */}
                 <View style={[styles.unifiedCard, { backgroundColor: isDark ? '#1E293B' : '#F8FAFC', borderColor: isDark ? '#334155' : '#E2E8F0' }]}>
-                  {/* Transfer Amount Badge */}
-                  <View style={[styles.transferAmountBadge, { backgroundColor: isDark ? 'rgba(16,185,129,0.12)' : '#F0FDF4', borderColor: isDark ? '#065F46' : '#A7F3D0' }]}>
-                    <Ionicons name="cash-outline" size={16} color="#059669" />
-                    <Text style={styles.transferAmountText}>{txt.transferAmount}</Text>
-                  </View>
-
-                  {/* QR Display */}
-                  <View style={styles.qrWrapper}>
-                    <View style={styles.qrFrame}>
-                      <Image
-                        source={{ uri: FIB_QR_IMAGE_URL }}
-                        style={styles.qrImage}
-                        contentFit="contain"
-                      />
-                    </View>
-                    <Text style={[styles.qrHint, { color: t.subColor }]}>{txt.qrHint}</Text>
-                  </View>
-
-                  {/* Account Number Row */}
-                  <View style={[styles.accountDetailBox, { backgroundColor: isDark ? '#0F172A' : '#FFFFFF', borderColor: isDark ? '#334155' : '#CBD5E1' }]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.accountNumberText, { color: t.titleColor }]}>{FIB_ACCOUNT_NUMBER}</Text>
-                    </View>
-                    <Pressable
-                      onPress={handleCopyNumber}
-                      style={({ pressed }) => [styles.copyPillBtn, copiedNumber && styles.copyPillBtnDone, pressed && styles.pressed]}
-                    >
-                      <Ionicons name={copiedNumber ? 'checkmark' : 'copy-outline'} size={14} color="#FFFFFF" />
-                      <Text style={styles.copyPillText}>{copiedNumber ? txt.copiedText : txt.copyCode}</Text>
-                    </Pressable>
-                  </View>
-
-                  {/* Required Transfer Note Code */}
-                  <View style={[styles.noteCodeBox, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.12)' : '#EFF6FF', borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : '#BFDBFE' }]}>
+                  {/* Required Request Key */}
+                  <View style={[styles.noteCodeBox, { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.1)' : '#F0F9FF', borderColor: isDark ? 'rgba(56, 189, 248, 0.3)' : '#BAE6FD' }]}>
                     <View style={styles.noteCodeHeader}>
-                      <Ionicons name="information-circle" size={16} color="#2563EB" />
-                      <Text style={styles.noteCodeTitle}>{txt.userCodeLabel}</Text>
+                      <Ionicons name="finger-print-outline" size={18} color="#0284C7" />
+                      <Text style={[styles.noteCodeTitle, { color: isDark ? '#38BDF8' : '#0369A1' }]}>{txt.userCodeLabel}</Text>
                     </View>
 
                     <View style={styles.noteCodeRow}>
-                      <Text style={styles.noteCodeValue}>{userCode}</Text>
+                      <Text style={[styles.noteCodeValue, { color: isDark ? '#FFFFFF' : '#0F172A', letterSpacing: 1.5 }]}>{userCode}</Text>
                       <Pressable
                         onPress={handleCopyCode}
-                        style={({ pressed }) => [styles.copyCodeBtn, pressed && styles.pressed]}
+                        style={({ pressed }) => [styles.copyCodeBtn, { backgroundColor: '#0284C7' }, pressed && styles.pressed]}
                       >
-                        <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={14} color="#FFFFFF" />
+                        <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={15} color="#FFFFFF" />
                         <Text style={styles.copyCodeBtnText}>{copied ? txt.copiedText : txt.copyCode}</Text>
                       </Pressable>
                     </View>
                   </View>
+
+                  {/* Informative Note */}
+                  <View style={{ paddingHorizontal: 12, paddingTop: 6, paddingBottom: 4 }}>
+                    <Text style={{ fontSize: 13, color: t.subColor, textAlign: 'center', lineHeight: 20 }}>
+                      {txt.instructionNote}
+                    </Text>
+                  </View>
                 </View>
 
-                {/* Primary Action Button */}
+                {/* Primary Action Buttons */}
                 <View style={styles.actionButtonsCol}>
+                  {/* WhatsApp Customer Support */}
+                  <Pressable
+                    onPress={handleOpenWhatsApp}
+                    style={({ pressed }) => [styles.whatsappBtn, pressed && styles.pressed]}
+                  >
+                    <Ionicons name="logo-whatsapp" size={19} color="#FFFFFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.whatsappBtnText}>{txt.contactSupportWhatsApp}</Text>
+                  </Pressable>
+
+                  {/* Verify Activation Status */}
                   <Pressable
                     onPress={handleSendPayment}
                     disabled={isSubmitting}
-                    style={({ pressed }) => [styles.sentBtn, isSubmitting && { opacity: 0.6 }, pressed && styles.pressed]}
+                    style={({ pressed }) => [styles.sentBtn, { backgroundColor: '#0284C7' }, isSubmitting && { opacity: 0.6 }, pressed && styles.pressed]}
                   >
                     <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
                     <Text style={styles.sentBtnText}>
-                      {isSubmitting ? txt.submitting : txt.submitPayment}
+                      {isSubmitting ? txt.submitting : txt.submitVerification}
                     </Text>
                   </Pressable>
                 </View>
@@ -629,15 +637,15 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.8,
   },
-  // ── Sleek Fintech FIB Card Styles ─────────────────────────────
-  fibHeaderBadge: {
+  // ── Sleek Activation Card Styles ─────────────────────────────
+  activationHeaderBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     marginBottom: 14,
     marginTop: 4,
   },
-  fibIconCircle: {
+  activationIconCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -645,11 +653,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  fibHeaderTitle: {
+  activationHeaderTitle: {
     fontSize: 16,
     fontWeight: '800',
   },
-  fibHeaderSub: {
+  activationHeaderSub: {
     fontSize: 12,
     fontWeight: '500',
   },
@@ -765,19 +773,19 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 6,
   },
-  launchFibBtn: {
+  whatsappBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#059669',
+    backgroundColor: '#16A34A',
     borderRadius: 14,
     paddingVertical: 13,
+    paddingHorizontal: 16,
   },
-  launchFibBtnText: {
+  whatsappBtnText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
   },
   transferAmountBadge: {
     flexDirection: 'row',

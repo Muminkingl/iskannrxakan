@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -40,29 +40,66 @@ export function SideDrawer({
   const { t, language } = useLanguage();
   const { isVip, daysRemaining, openPlanModal } = usePlan();
   const isEnglish = language === 'english';
+  const isArabic = language === 'arabic';
   const [modalMounted, setModalMounted] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const closingRef = useRef(false);
+  const pendingActionRef = useRef<(() => void) | undefined>(undefined);
   const progress = useSharedValue(0);
+  const dismissWithoutAction = useCallback(() => {
+    setModalVisible(false);
+    if (Platform.OS !== 'ios') {
+      setModalMounted(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (visible) {
+      closingRef.current = false;
+      pendingActionRef.current = undefined;
       setModalMounted(true);
+      setModalVisible(true);
       progress.value = withTiming(1, { duration: 250 });
-    } else {
+    } else if (modalMounted && !closingRef.current) {
       progress.value = withTiming(0, { duration: 220 }, (finished) => {
         if (finished) {
-          runOnJS(setModalMounted)(false);
+          runOnJS(dismissWithoutAction)();
         }
       });
     }
-  }, [visible, progress]);
+  }, [visible, modalMounted, progress, dismissWithoutAction]);
+
+  const finishDismiss = () => {
+    setModalMounted(false);
+    closingRef.current = false;
+    const action = pendingActionRef.current;
+    pendingActionRef.current = undefined;
+    action?.();
+  };
+
+  const beginDismissAfterTap = () => {
+    onClose();
+    setModalVisible(false);
+
+    // On iOS, keep the Modal mounted until UIKit confirms it has been
+    // dismissed. Opening another native Modal before then can block the UI.
+    if (Platform.OS !== 'ios') {
+      setModalMounted(false);
+      closingRef.current = false;
+      const action = pendingActionRef.current;
+      pendingActionRef.current = undefined;
+      action?.();
+    }
+  };
 
   const handleCloseWithAnimation = (action?: () => void) => {
+    if (closingRef.current) return;
+
+    closingRef.current = true;
+    pendingActionRef.current = action;
     progress.value = withTiming(0, { duration: 220 }, (finished) => {
       if (finished) {
-        runOnJS(onClose)();
-        if (action) {
-          runOnJS(action)();
-        }
+        runOnJS(beginDismissAfterTap)();
       }
     });
   };
@@ -82,10 +119,11 @@ export function SideDrawer({
 
   return (
     <Modal
-      visible={modalMounted || visible}
+      visible={modalVisible || visible}
       transparent
       animationType="none"
       onRequestClose={() => handleCloseWithAnimation()}
+      onDismiss={Platform.OS === 'ios' ? finishDismiss : undefined}
     >
       <View style={styles.drawerOverlay}>
         {/* Backdrop Fade */}
@@ -114,8 +152,10 @@ export function SideDrawer({
                 <Text style={styles.drawerBannerTitle}>
                   {isVip
                     ? isEnglish
-                      ? 'Diamond VIP Member'
-                      : 'ئەکاونتی ئەڵماس (VIP)'
+                      ? 'VIP Member'
+                      : isArabic
+                      ? 'حساب (VIP)'
+                      : 'ئەکاونتی (VIP)'
                     : isEnglish
                     ? 'General Member'
                     : 'ئەکاونتی ئاسایی'}
@@ -130,8 +170,10 @@ export function SideDrawer({
                       ? `${daysRemaining} Days Remaining`
                       : `${daysRemaining} ڕۆژ ماوە`
                     : isEnglish
-                    ? 'Tap to activate Diamond access'
-                    : 'کلیک بکە بۆ چالاكکردنی ئەڵماس'}
+                    ? 'Tap to activate VIP access'
+                    : isArabic
+                    ? 'اضغط لتفعيل مزايا VIP'
+                    : 'کلیک بکە بۆ چالاكکردنی VIP'}
                 </Text>
               </View>
             </Pressable>
@@ -167,7 +209,7 @@ export function SideDrawer({
                 style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
               >
                 <Text style={[styles.menuText, { color: '#0EA5E9' }]}>
-                  {isEnglish ? 'Diamond Access (VIP)' : 'تایبەتمەندی ئەڵماس'}
+                  {isEnglish ? 'VIP Access' : isArabic ? 'ميزات VIP' : 'تایبەتمەندی VIP'}
                 </Text>
                 <Ionicons name="diamond-outline" size={20} color="#0EA5E9" />
               </Pressable>

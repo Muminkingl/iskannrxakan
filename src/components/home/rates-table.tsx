@@ -29,18 +29,18 @@ export function RatesTable({ rates }: RatesTableProps) {
         ]}
       >
         <View style={[styles.colCurrencyHeader, isEnglish && styles.alignLeft]}>
-          <Text style={[styles.headerTitleCurr, { color: colors.textPrimary }]}>{t('currencyLabel')}</Text>
-          <Text style={[styles.headerSubCurr, { color: colors.textSecondary }]}>{t('currencySub')}</Text>
+          <Text style={[styles.headerTitleCurr, { color: colors.textPrimary }]} numberOfLines={1}>{t('currencyLabel')}</Text>
+          <Text style={[styles.headerSubCurr, { color: colors.textSecondary }]} numberOfLines={1}>{t('currencySub')}</Text>
         </View>
 
         <View style={styles.colBuyHeader}>
-          <Text style={styles.headerTitleBuy}>{t('buyLabel')}</Text>
-          <Text style={styles.headerSubBuy}>{t('buySub')}</Text>
+          <Text style={styles.headerTitleBuy} numberOfLines={1}>{t('buyLabel')}</Text>
+          <Text style={styles.headerSubBuy} numberOfLines={1}>{t('buySub')}</Text>
         </View>
 
         <View style={[styles.colSellHeader, isEnglish && styles.alignRight]}>
-          <Text style={styles.headerTitleSell}>{t('sellLabel')}</Text>
-          <Text style={styles.headerSubSell}>{t('sellSub')}</Text>
+          <Text style={styles.headerTitleSell} numberOfLines={1}>{t('sellLabel')}</Text>
+          <Text style={styles.headerSubSell} numberOfLines={1}>{t('sellSub')}</Text>
         </View>
       </View>
 
@@ -60,12 +60,17 @@ export function RatesTable({ rates }: RatesTableProps) {
               <View style={[styles.currencyMetaRight, isEnglish && styles.alignLeft]}>
                 <Text
                   numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
                   ellipsizeMode="tail"
                   style={[styles.currencyNameKurdish, { color: colors.textPrimary }, isEnglish && styles.textLeft]}
                 >
                   {getCurrencyName(rate.code, rate.nameKurdish, language)}
                 </Text>
-                <Text style={[styles.currencyCodeSub, { color: colors.textSecondary }, isEnglish && styles.textLeft]}>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.currencyCodeSub, { color: colors.textSecondary }, isEnglish && styles.textLeft]}
+                >
                   {rate.unitLabel}
                 </Text>
               </View>
@@ -75,7 +80,14 @@ export function RatesTable({ rates }: RatesTableProps) {
             <View style={styles.colBuy}>
               {isVip ? (
                 <View style={[styles.buyPill, isDark && { backgroundColor: '#0F1950', borderColor: '#1E3A8A' }]}>
-                  <Text style={[styles.buyPriceText, isDark && { color: '#93C5FD' }]}>{rate.buyRate}</Text>
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                    style={[styles.buyPriceText, isDark && { color: '#93C5FD' }]}
+                  >
+                    {rate.buyRate}
+                  </Text>
                 </View>
               ) : (
                 <View style={styles.lockedPill}>
@@ -89,7 +101,14 @@ export function RatesTable({ rates }: RatesTableProps) {
             <View style={[styles.colSell, isEnglish && styles.alignRight]}>
               {isVip ? (
                 <View style={[styles.sellPill, isDark && { backgroundColor: '#3B0A0A', borderColor: '#7F1D1D' }]}>
-                  <Text style={[styles.sellPriceText, isDark && { color: '#FCA5A5' }]}>{rate.sellRate}</Text>
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                    style={[styles.sellPriceText, isDark && { color: '#FCA5A5' }]}
+                  >
+                    {rate.sellRate}
+                  </Text>
                 </View>
               ) : (
                 <View style={styles.lockedPill}>
@@ -107,7 +126,7 @@ export function RatesTable({ rates }: RatesTableProps) {
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
+    marginHorizontal: 12,
     marginTop: 14,
     borderRadius: 18,
     borderWidth: 1,
@@ -117,8 +136,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     borderBottomWidth: 1,
   },
   rowLtr: {
@@ -133,28 +152,55 @@ const styles = StyleSheet.create({
   textLeft: {
     textAlign: 'left',
   },
-  colSellHeader: { flex: 1, alignItems: 'flex-start' },
-  headerTitleSell: { color: '#DC2626', fontSize: 12, fontWeight: '900', letterSpacing: 0.8 },
-  headerSubSell: { color: '#EF4444', fontSize: 10, fontWeight: '700', marginTop: 1 },
-  colBuyHeader: { flex: 1, alignItems: 'center' },
-  headerTitleBuy: { color: '#2563EB', fontSize: 12, fontWeight: '900', letterSpacing: 0.8 },
-  headerSubBuy: { color: '#3B82F6', fontSize: 10, fontWeight: '700', marginTop: 1 },
+  colSellHeader: { flex: 1.1, alignItems: 'flex-start' },
+  headerTitleSell: { color: '#DC2626', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+  headerSubSell: { color: '#EF4444', fontSize: 9, fontWeight: '700', marginTop: 1 },
+  colBuyHeader: { flex: 1.1, alignItems: 'center' },
+  headerTitleBuy: { color: '#2563EB', fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+  headerSubBuy: { color: '#3B82F6', fontSize: 9, fontWeight: '700', marginTop: 1 },
   colCurrencyHeader: { flex: 1.4, alignItems: 'flex-end' },
-  headerTitleCurr: { fontSize: 12, fontWeight: '900', letterSpacing: 0.8 },
-  headerSubCurr: { fontSize: 10, fontWeight: '700', marginTop: 1 },
+  headerTitleCurr: { fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+  headerSubCurr: { fontSize: 9, fontWeight: '700', marginTop: 1 },
   tableBody: { gap: 0 },
-  tableRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1 },
-  colSell: { flex: 1, alignItems: 'flex-start' },
-  sellPill: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, minWidth: 82, alignItems: 'center' },
-  sellPriceText: { color: '#DC2626', fontSize: 14, fontWeight: '900' },
-  colBuy: { flex: 1, alignItems: 'center' },
-  buyPill: { backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#C7D2FE', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, minWidth: 82, alignItems: 'center' },
-  buyPriceText: { color: '#2563EB', fontSize: 14, fontWeight: '900' },
-  colCurrency: { flex: 1.6, flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
-  currencyMetaRight: { alignItems: 'flex-end', flex: 1 },
-  currencyNameKurdish: { fontSize: 13, fontWeight: '600', textAlign: 'right' },
-  currencyCodeSub: { fontSize: 10, fontWeight: '500', marginTop: 2, textAlign: 'right', color: '#94A3B8' },
-  flagContainer: { width: 28, alignItems: 'center', justifyContent: 'center' },
+  tableRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  colSell: { flex: 1.1, alignItems: 'flex-start', justifyContent: 'center' },
+  sellPill: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    paddingHorizontal: 4,
+    paddingVertical: 7,
+    width: '95%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sellPriceText: { color: '#DC2626', fontSize: 13, fontWeight: '900', textAlign: 'center' },
+  colBuy: { flex: 1.1, alignItems: 'center', justifyContent: 'center' },
+  buyPill: {
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    borderRadius: 10,
+    paddingHorizontal: 4,
+    paddingVertical: 7,
+    width: '95%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buyPriceText: { color: '#2563EB', fontSize: 13, fontWeight: '900', textAlign: 'center' },
+  colCurrency: { flex: 1.4, flexDirection: 'row-reverse', alignItems: 'center', gap: 6, paddingHorizontal: 2 },
+  currencyMetaRight: { alignItems: 'flex-end', flex: 1, overflow: 'hidden' },
+  currencyNameKurdish: { fontSize: 12, fontWeight: '700', textAlign: 'right' },
+  currencyCodeSub: { fontSize: 10, fontWeight: '500', marginTop: 1, textAlign: 'right', color: '#94A3B8' },
+  flagContainer: { width: 24, alignItems: 'center', justifyContent: 'center' },
   lockedPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -163,9 +209,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(14, 165, 233, 0.3)',
     borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    minWidth: 82,
+    paddingHorizontal: 6,
+    paddingVertical: 7,
+    width: '95%',
   },
   lockedPillText: {
     color: '#0EA5E9',

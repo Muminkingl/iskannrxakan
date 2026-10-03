@@ -1,1 +1,1 @@
-@AGENTS.md
+okay now before i submit to production reveiew entire codebase like privacy policy , terms service see if any thing is red flag for like is this ready to publish not against any rule ? 

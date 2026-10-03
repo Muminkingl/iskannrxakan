@@ -1,6 +1,6 @@
-import { version } from 'expo/package.json';
 import { Image } from 'expo-image';
-import { useColorScheme, StyleSheet } from 'react-native';
+import { version } from 'expo/package.json';
+import { StyleSheet, useColorScheme } from 'react-native';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
@@ -41,3 +41,7 @@ const styles = StyleSheet.create({
     aspectRatio: 123 / 24,
   },
 });
+
+// maybe something left but i swear im cryibng of my first day at fucking nightamare job omhhhhhmgggggggg im hungry asf its 5:49 p m in 8/4/2016 still i dint eat shii
+// i wish i want kid everything was fine and i wish everything was before my fucking mouth as i said "PLEASE HOGR FIND ME JOb" fuck no i swear if i knew this shit will happne i iould never do any of that shi imm actualy pissed off
+// what do you hink about uit  ? what is left 

@@ -6,105 +6,41 @@ import { GoldCalculatorModal } from '@/components/gold/gold-calculator-modal';
 import { GOLD_RATES as INITIAL_GOLD_RATES } from '@/constants/market-data';
 import { useLanguage } from '@/context/language-context';
 import { usePlan } from '@/context/plan-context';
+import { useRates } from '@/context/rates-context';
 import { useTheme } from '@/context/theme-context';
-import { supabase } from '@/lib/supabase';
 import type { GoldItem } from '@/types/market';
-
-// Client-side cache for gold rates (5-minute TTL) to prevent DB request spam
-let goldRatesCache: { timestamp: number; data: GoldItem[] } | null = null;
-const GOLD_CACHE_TTL_MS = 5 * 60 * 1000;
 
 export function GoldScreen() {
   const { colors, isDark } = useTheme();
   const { t, language } = useLanguage();
   const { isVip, openPlanModal } = usePlan();
+  const { rates } = useRates();
   const isEnglish = language === 'english';
 
-  const [goldRates, setGoldRates] = useState<GoldItem[]>(
-    goldRatesCache ? goldRatesCache.data : INITIAL_GOLD_RATES
-  );
+  const [goldRates, setGoldRates] = useState<GoldItem[]>(INITIAL_GOLD_RATES);
   const [isCalcModalOpen, setIsCalcModalOpen] = useState(false);
 
   useEffect(() => {
-    fetchGoldRatesFromDb();
-
-    const channel = supabase
-      .channel('gold_rates_realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rates' }, () => {
-        fetchGoldRatesFromDb(true);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const fetchGoldRatesFromDb = async (forceFetch = false) => {
-    if (!forceFetch && goldRatesCache && Date.now() - goldRatesCache.timestamp < GOLD_CACHE_TTL_MS) {
-      setGoldRates(goldRatesCache.data);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('rates')
-        .select('*')
-        .eq('category', 'gold');
-
-      if (error || !data || data.length === 0) return;
-
-      const g24 = data.find((r) => r.base_currency_code === 'G24');
-      const g22 = data.find((r) => r.base_currency_code === 'G22');
-      const g21 = data.find((r) => r.base_currency_code === 'G21');
-      const g18 = data.find((r) => r.base_currency_code === 'G18');
-      const xau = data.find((r) => r.base_currency_code === 'XAU');
-
-      const updated = INITIAL_GOLD_RATES.map((item) => {
-        if (item.id === 'g24' && g24) {
-          return {
-            ...item,
-            price: Number(g24.sell_rate),
-            priceFormatted: `${Number(g24.sell_rate).toLocaleString()} د.ع`,
-          };
-        }
-        if (item.id === 'g22' && g22) {
-          return {
-            ...item,
-            price: Number(g22.sell_rate),
-            priceFormatted: `${Number(g22.sell_rate).toLocaleString()} د.ع`,
-          };
-        }
-        if (item.id === 'g21' && g21) {
-          return {
-            ...item,
-            price: Number(g21.sell_rate),
-            priceFormatted: `${Number(g21.sell_rate).toLocaleString()} د.ع`,
-          };
-        }
-        if (item.id === 'g18' && g18) {
-          return {
-            ...item,
-            price: Number(g18.sell_rate),
-            priceFormatted: `${Number(g18.sell_rate).toLocaleString()} د.ع`,
-          };
-        }
-        if (item.id === 'ounce' && xau) {
-          return {
-            ...item,
-            price: Number(xau.sell_rate),
-            priceFormatted: `$${Number(xau.sell_rate).toLocaleString()}`,
-          };
-        }
-        return item;
-      });
-
-      goldRatesCache = { timestamp: Date.now(), data: updated };
-      setGoldRates(updated);
-    } catch (err) {
-      console.log('Error fetching gold rates:', err);
-    }
-  };
+    const byCode = new Map(rates.map((rate) => [rate.code, rate]));
+    const updated = INITIAL_GOLD_RATES.map((item) => {
+      const codeById: Record<string, string> = {
+        g24: 'G24',
+        g22: 'G22',
+        g21: 'G21',
+        g18: 'G18',
+        ounce: 'XAU',
+      };
+      const rate = byCode.get(codeById[item.id]);
+      if (!rate) return item;
+      const value = Number(rate.sellRate.replace(/,/g, ''));
+      return {
+        ...item,
+        price: value,
+        priceFormatted: item.id === 'ounce' ? `$${value.toLocaleString()}` : `${value.toLocaleString()} د.ع`,
+      };
+    });
+    setGoldRates(updated);
+  }, [rates]);
 
   const getKaratTitle = (item: GoldItem) => {
     if (isEnglish) {
@@ -187,7 +123,12 @@ export function GoldScreen() {
               {/* Price Pill */}
               {isVip ? (
                 <View style={[styles.pricePill, { backgroundColor: colors.bgPrimary, borderColor: colors.borderColor }]}>
-                  <Text style={[styles.pricePillText, { color: colors.textPrimary }]}>
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                    style={[styles.pricePillText, { color: colors.textPrimary }]}
+                  >
                     {getPriceFormatted(item)}
                   </Text>
                 </View>

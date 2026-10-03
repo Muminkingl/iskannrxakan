@@ -1,4 +1,5 @@
-import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
 import { IskanLogo } from '@/components/common/iskan-logo';
@@ -62,7 +63,8 @@ export function AboutAppModal({ visible, onClose }: AboutAppModalProps) {
           {/* Developer Credit Footer Card */}
           <View style={styles.devCard}>
             <Image
-              source={require('../../../assets/images/trx.jpg')}
+              source={require('../../../assets/trx.svg')}
+              contentFit="contain"
               style={styles.devLogoImage}
             />
             <View style={styles.devMeta}>

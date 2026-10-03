@@ -104,13 +104,22 @@ export function HeroHeader({
 
         <Pressable onPress={!isVip ? openPlanModal : undefined} style={styles.priceRow}>
           {isVip ? (
-            <Text style={styles.spotlightPrice}>
-              {usdBuyRate ?? '—'} {t('heroCurrencyUnit')}
-            </Text>
+            // Split number and currency into separate Texts inside a flex row
+            // This prevents the Arabic/Kurdish د.ع symbol from wrapping to a new line
+            <View style={[styles.priceInlineRow, isEnglish && styles.priceInlineRowLtr]}>
+              <Text style={styles.spotlightPrice} numberOfLines={1}>
+                {usdBuyRate ?? '—'}
+              </Text>
+              <Text style={styles.spotlightCurrency} numberOfLines={1}>
+                {t('heroCurrencyUnit')}
+              </Text>
+            </View>
           ) : (
             <View style={styles.lockedHeaderPill}>
               <Ionicons name="lock-closed" size={18} color="#38BDF8" style={{ marginRight: 6 }} />
-              <Text style={styles.lockedHeaderPrice}>•••••••• {t('heroCurrencyUnit')}</Text>
+              <Text style={styles.lockedHeaderPrice} numberOfLines={1}>
+                •••••••• {t('heroCurrencyUnit')}
+              </Text>
             </View>
           )}
         </Pressable>
@@ -198,13 +207,30 @@ const styles = StyleSheet.create({
   priceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 6,
+  },
+  // Separate row for number + currency symbol — prevents RTL wrapping
+  priceInlineRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'baseline',
+    gap: 8,
+    flexWrap: 'nowrap',
+  },
+  priceInlineRowLtr: {
+    flexDirection: 'row',
   },
   spotlightPrice: {
     color: '#FFFFFF',
     fontSize: 36,
     fontWeight: '900',
     letterSpacing: -1,
+    flexShrink: 1,
+  },
+  spotlightCurrency: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    opacity: 0.9,
+    flexShrink: 0,
   },
   cityPillFrame: {
     backgroundColor: 'rgba(255,255,255,0.15)',

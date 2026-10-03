@@ -1,25 +1,35 @@
 {
   "expo": {
-    "name": "Iskan Nrxiakan",
+    "name": "Iskan Nrxakan",
     "slug": "iskannrxakan",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/images/nrxiskan_4k.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "iskannrxakan",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/images/nrxiskan_4k.png",
-      "bundleIdentifier": "com.trxstudio.iskannrxakan"
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "com.trxstudio.iskannrxakan",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.trxstudio.iskannrxakan",
+      "versionCode": 2,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/nrxiskan_4k.png",
+        "backgroundColor": "#042746",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
     },
     "web": {
       "output": "static",
@@ -27,12 +37,13 @@
     },
     "plugins": [
       "expo-router",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0B1E3A",
-          "image": "./assets/images/nrxiskan_4k.png",
-          "imageWidth": 112
+          "backgroundColor": "#042746",
+          "image": "./assets/images/icon.png",
+          "imageWidth": 140
         }
       ],
       "expo-secure-store"
@@ -44,8 +55,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "3a20906c-c588-4701-b647-7b5c1ea504fd"
+        "projectId": "072bcd47-1a0a-47d6-947a-c73d2d983adc"
       }
-    }
+    },
+    "owner": "memonotsafee"
   }
 }

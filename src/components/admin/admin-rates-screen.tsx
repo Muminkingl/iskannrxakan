@@ -34,6 +34,7 @@ export function AdminRatesScreen() {
   const [buyInput, setBuyInput] = useState('');
   const [sellInput, setSellInput] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [paymentLoadError, setPaymentLoadError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // VIP Grant state
@@ -44,16 +45,25 @@ export function AdminRatesScreen() {
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
   const [activeVipUsers, setActiveVipUsers] = useState<ActiveVipUser[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [vipSearch, setVipSearch] = useState('');
+  const [vipShowCount, setVipShowCount] = useState(15);
 
   const paymentChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Fetch payment requests & active VIP users
   const fetchPaymentRequests = async () => {
-    const { data, error } = await supabase
-      .from('payment_requests')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error && data) setPaymentRequests(data as PaymentRequest[]);
+    try {
+      const { data, error } = await supabase
+        .from('payment_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setPaymentRequests((data || []) as PaymentRequest[]);
+      setPaymentLoadError(false);
+    } catch (error) {
+      console.warn('Could not load activation requests:', error);
+      setPaymentLoadError(true);
+    }
   };
 
   const fetchActiveVipUsers = async () => {
@@ -210,7 +220,15 @@ export function AdminRatesScreen() {
 
     paymentChannelRef.current = paymentChannel;
 
+    // Realtime is best-effort on mobile networks. Refresh periodically so an
+    // approved or newly submitted request still appears if the channel drops.
+    const refreshTimer = setInterval(() => {
+      void fetchPaymentRequests();
+      void fetchActiveVipUsers();
+    }, 30_000);
+
     return () => {
+      clearInterval(refreshTimer);
       supabase.removeChannel(channel);
       supabase.removeChannel(paymentChannel);
     };
@@ -320,6 +338,15 @@ export function AdminRatesScreen() {
 
   const pendingCount = paymentRequests.filter((r) => r.status === 'pending').length;
 
+  // Filtered + paginated VIP users — client-side only, no extra DB calls
+  const filteredVipUsers = vipSearch.trim()
+    ? activeVipUsers.filter((u) =>
+        u.email.toLowerCase().includes(vipSearch.trim().toLowerCase())
+      )
+    : activeVipUsers;
+  const visibleVipUsers = filteredVipUsers.slice(0, vipShowCount);
+  const hasMoreVip = filteredVipUsers.length > vipShowCount;
+
   return (
     <View style={styles.container}>
       {/* Toast Banner */}
@@ -336,7 +363,7 @@ export function AdminRatesScreen() {
         <Text style={styles.screenSub}>گۆڕانکاری ڕاستەوخۆ لە نرخەکانی بازاڕی دراو و زێڕ</Text>
       </View>
 
-      {/* ─── SECTION 1: PENDING FIB PAYMENT REQUESTS ───────────────────── */}
+      {/* ─── SECTION 1: PENDING ACTIVATION REQUESTS ───────────────────── */}
       <View style={styles.lightSectionCard}>
         <View style={styles.lightSectionHeader}>
           {pendingCount > 0 && (
@@ -344,11 +371,18 @@ export function AdminRatesScreen() {
               <Text style={styles.pendingBadgeText}>{pendingCount}</Text>
             </View>
           )}
-          <Text style={styles.lightSectionTitle}>داواکارییەکانی پارەدان (FIB)</Text>
-          <Ionicons name="card-outline" size={20} color="#3B82F6" />
+          <Text style={styles.lightSectionTitle}>داواکارییەکانی چالاککردن</Text>
+          <Ionicons name="key-outline" size={20} color="#3B82F6" />
         </View>
 
-        {paymentRequests.filter((r) => r.status === 'pending').length === 0 ? (
+        {paymentLoadError ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>داواکارییەکان بارنەکران</Text>
+            <Pressable onPress={() => void fetchPaymentRequests()} style={styles.loadMoreBtn}>
+              <Text style={styles.loadMoreText}>دووبارە هەوڵدانەوە</Text>
+            </Pressable>
+          </View>
+        ) : paymentRequests.filter((r) => r.status === 'pending').length === 0 ? (
           <View style={styles.emptyBox}>
             <Text style={styles.emptyText}>هیچ داواکارییەکی نوێ نییە</Text>
           </View>
@@ -405,19 +439,44 @@ export function AdminRatesScreen() {
       <View style={styles.lightSectionCard}>
         <View style={styles.lightSectionHeader}>
           <View style={styles.activeCountBadge}>
-            <Text style={styles.activeCountText}>{activeVipUsers.length}</Text>
+            <Text style={styles.activeCountText}>{filteredVipUsers.length}/{activeVipUsers.length}</Text>
           </View>
           <Text style={styles.lightSectionTitle}>لیستی ئەکاونتە چالاکەکان (VIP Users)</Text>
           <Ionicons name="diamond-outline" size={20} color="#0284C7" />
         </View>
 
+        {/* Search Bar */}
+        {activeVipUsers.length > 0 && (
+          <View style={styles.vipSearchBox}>
+            <Ionicons name="search" size={16} color="#94A3B8" />
+            <TextInput
+              value={vipSearch}
+              onChangeText={(text) => { setVipSearch(text); setVipShowCount(15); }}
+              placeholder="گەڕان بە ئیمەیڵ..."
+              placeholderTextColor="#94A3B8"
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={styles.vipSearchInput}
+            />
+            {vipSearch.length > 0 && (
+              <Pressable onPress={() => { setVipSearch(''); setVipShowCount(15); }} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              </Pressable>
+            )}
+          </View>
+        )}
+
         {activeVipUsers.length === 0 ? (
           <View style={styles.emptyBox}>
             <Text style={styles.emptyText}>هیچ ئەکاونتێکی چالاک دیاری نەکراوە</Text>
           </View>
+        ) : filteredVipUsers.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>ئیمەیڵێک نەدۆزرایەوە</Text>
+          </View>
         ) : (
           <View style={styles.cardsList}>
-            {activeVipUsers.map((user) => {
+            {visibleVipUsers.map((user) => {
               const expIso = user.vip_expires_at || user.expires_at;
               const daysLeft = expIso
                 ? Math.ceil((new Date(expIso).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
@@ -442,6 +501,19 @@ export function AdminRatesScreen() {
                 </View>
               );
             })}
+
+            {/* Load More button — no extra DB call, just reveals next batch */}
+            {hasMoreVip && (
+              <Pressable
+                onPress={() => setVipShowCount((c) => c + 15)}
+                style={({ pressed }) => [styles.loadMoreBtn, pressed && styles.pressed]}
+              >
+                <Ionicons name="chevron-down" size={16} color="#3B50C8" />
+                <Text style={styles.loadMoreText}>
+                  نیشاندانی زیاتر ({filteredVipUsers.length - vipShowCount} ئەکاونتی تر)
+                </Text>
+              </Pressable>
+            )}
           </View>
         )}
       </View>
@@ -541,39 +613,43 @@ export function AdminRatesScreen() {
               onPress={() => handleOpenEdit(item)}
               style={({ pressed }) => [styles.rateCardRow, pressed && styles.pressed]}
             >
-              <View style={styles.editPillBtn}>
-                <Ionicons name="create-outline" size={16} color="#3B50C8" />
-                <Text style={styles.editBtnText}>دەستکاری</Text>
+              <View style={styles.rateIdentityRow}>
+                <FlagIcon code={item.flagCode} size={24} />
+
+                <View style={styles.itemMetaRight}>
+                  <Text style={styles.itemCodeText} numberOfLines={1}>{item.code}</Text>
+                  <Text style={styles.itemNameText} numberOfLines={1} ellipsizeMode="tail">
+                    {item.nameKurdish}
+                  </Text>
+                </View>
+
+                <View style={styles.editPillBtn}>
+                  <Ionicons name="create-outline" size={16} color="#3B50C8" />
+                  <Text style={styles.editBtnText}>دەستکاری</Text>
+                </View>
               </View>
 
               <View style={styles.ratesValuesBlock}>
                 {item.category === 'gold' ? (
                   <View style={styles.goldPricePill}>
                     <Text style={styles.goldPriceLabel}>نرخ:</Text>
-                    <Text style={styles.goldPriceValue}>
+                    <Text style={styles.goldPriceValue} numberOfLines={1}>
                       {item.code === 'XAU' ? `$${item.sellRate}` : `${item.sellRate} د.ع`}
                     </Text>
                   </View>
                 ) : (
                   <>
                     <View style={styles.rateValuePill}>
-                      <Text style={styles.rateValueLabel}>کڕین:</Text>
-                      <Text style={styles.rateValueText}>{item.buyRate}</Text>
+                      <Text style={styles.rateValueLabel} numberOfLines={1}>کڕین:</Text>
+                      <Text style={styles.rateValueText} numberOfLines={1}>{item.buyRate}</Text>
                     </View>
                     <View style={styles.rateValuePillSell}>
-                      <Text style={styles.rateValueLabelSell}>فڕۆشتن:</Text>
-                      <Text style={styles.rateValueTextSell}>{item.sellRate}</Text>
+                      <Text style={styles.rateValueLabelSell} numberOfLines={1}>فڕۆشتن:</Text>
+                      <Text style={styles.rateValueTextSell} numberOfLines={1}>{item.sellRate}</Text>
                     </View>
                   </>
                 )}
               </View>
-
-              <View style={styles.itemMetaRight}>
-                <Text style={styles.itemCodeText}>{item.code}</Text>
-                <Text style={styles.itemNameText}>{item.nameKurdish}</Text>
-              </View>
-
-              <FlagIcon code={item.flagCode} size={24} />
             </Pressable>
           ))}
         </View>
@@ -807,6 +883,43 @@ const styles = StyleSheet.create({
   cardsList: {
     gap: 8,
   },
+  vipSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  vipSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#0F172A',
+    textAlign: 'right',
+    paddingVertical: 0,
+  },
+  loadMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    backgroundColor: '#EEF2FF',
+    marginTop: 4,
+  },
+  loadMoreText: {
+    color: '#3B50C8',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
   itemRowCard: {
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
@@ -1006,14 +1119,19 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   rateCardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'stretch',
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    gap: 10,
+  },
+  rateIdentityRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 0,
   },
   editPillBtn: {
     flexDirection: 'row',
@@ -1033,6 +1151,7 @@ const styles = StyleSheet.create({
   },
   ratesValuesBlock: {
     flexDirection: 'row',
+    width: '100%',
     gap: 8,
   },
   goldPricePill: {
@@ -1057,6 +1176,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   rateValuePill: {
+    flex: 1,
+    minWidth: 0,
     backgroundColor: '#F8FAFC',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -1075,6 +1196,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   rateValuePillSell: {
+    flex: 1,
+    minWidth: 0,
     backgroundColor: '#F8FAFC',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -1095,6 +1218,7 @@ const styles = StyleSheet.create({
   itemMetaRight: {
     alignItems: 'flex-end',
     flex: 1,
+    minWidth: 0,
     marginRight: 8,
   },
   itemCodeText: {

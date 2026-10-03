@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useLanguage } from '@/context/language-context';
 import { usePlan } from '@/context/plan-context';
+import { useRates } from '@/context/rates-context';
 import { useTheme } from '@/context/theme-context';
 import { supabase } from '@/lib/supabase';
 
@@ -94,6 +95,7 @@ export function MarketChartScreen() {
   const { colors, isDark } = useTheme();
   const { t, language } = useLanguage();
   const { isVip, openPlanModal } = usePlan();
+  const { rates } = useRates();
   const isEnglish = language === 'english';
 
   const [chartWidth, setChartWidth] = useState(300);
@@ -198,7 +200,9 @@ export function MarketChartScreen() {
         .eq('base_currency_code', selectedPair.baseCurrencyCode)
         .gte('created_at', since)
         .lte('created_at', until)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true })
+        // Keep the chart request bounded even when the history table grows.
+        .limit(500);
 
       if (error) {
         console.log('fetchHistory error:', error.message);
@@ -214,16 +218,14 @@ export function MarketChartScreen() {
           payload: { historyPoints: typed },
         });
       } else {
-        // No data yet — fetch current rate from rates table as single point
-        const { data: rateData } = await supabase
-          .from('rates')
-          .select('sell_rate, buy_rate')
-          .eq('base_currency_code', selectedPair.baseCurrencyCode)
-          .single();
+        // Use the already-cached public snapshot for a single current point;
+        // do not issue a second customer query to the rates table.
+        const currentRate = rates.find((rate) => rate.code === selectedPair.baseCurrencyCode);
 
-        if (rateData) {
-          const sell = Number(rateData.sell_rate);
-          const fallbackPoints = [{ created_at: new Date().toISOString(), sell_rate: sell, buy_rate: Number(rateData.buy_rate) }];
+        if (currentRate) {
+          const sell = Number(currentRate.sellRate.replace(/,/g, ''));
+          const buy = Number(currentRate.buyRate.replace(/,/g, ''));
+          const fallbackPoints = [{ created_at: new Date().toISOString(), sell_rate: sell, buy_rate: buy }];
           setCurrentRate(sell.toLocaleString());
           setHigh(sell.toLocaleString());
           setLow(sell.toLocaleString());
@@ -258,21 +260,10 @@ export function MarketChartScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedPairId, timeframe, startDate, endDate, customPair]);
+  }, [selectedPairId, timeframe, startDate, endDate, customPair, rates]);
 
   useEffect(() => {
     fetchHistory();
-
-    const channel = supabase
-      .channel(`chart_history_${selectedPairId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rate_history' }, () => {
-        fetchHistory();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [fetchHistory]);
 
   const customTabLabel = customPair ? customPair.label : t('chartCustom');
@@ -348,7 +339,12 @@ export function MarketChartScreen() {
                 size={14}
                 color={isPositive ? '#166534' : '#991B1B'}
               />
-              <Text style={[styles.changeText, { color: isPositive ? '#166534' : '#991B1B' }]}>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+                style={[styles.changeText, { color: isPositive ? '#166534' : '#991B1B' }]}
+              >
                 {change}
               </Text>
             </View>
@@ -358,10 +354,19 @@ export function MarketChartScreen() {
             onPress={!isVip ? openPlanModal : undefined}
             style={[styles.priceMetaRight, isEnglish && styles.alignLeft]}
           >
-            <Text style={[styles.currentPriceText, isEnglish && styles.textLeft]}>
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              style={[styles.currentPriceText, isEnglish && styles.textLeft]}
+            >
               {isVip ? currentRate : '••••••••'}
             </Text>
-            <Text style={[styles.currentPriceLabel, isEnglish && styles.textLeft]}>
+            <Text
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={[styles.currentPriceLabel, isEnglish && styles.textLeft]}
+            >
               {selectedPair?.label ?? '—'} · {t('chartLiveRateLabel')}
             </Text>
           </Pressable>
@@ -374,7 +379,7 @@ export function MarketChartScreen() {
               <View style={styles.vipLockedChartBox}>
                 <Ionicons name="diamond" size={28} color="#38BDF8" style={{ marginBottom: 6 }} />
                 <Text style={styles.vipLockedTitle}>
-                  {isEnglish ? 'Diamond Access Required' : 'تایبەتمەندی ئەڵماس (VIP) پێویستە'}
+                  {isEnglish ? 'VIP Access Required' : language === 'arabic' ? 'ميزات VIP مطلوبة' : 'تایبەتمەندی VIP پێویستە'}
                 </Text>
                 <Text style={styles.vipLockedSub}>
                   {isEnglish ? 'Tap to view live market trends & charts' : 'کلیک بکە بۆ بەدەستهێنانی شیکاری بۆرسە'}
@@ -767,14 +772,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
   },
   changeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 8,
+    flexShrink: 1,
+    maxWidth: '48%',
   },
   changeText: {
     fontSize: 11,
@@ -782,6 +790,7 @@ const styles = StyleSheet.create({
   },
   priceMetaRight: {
     alignItems: 'flex-end',
+    flexShrink: 1,
   },
   currentPriceText: {
     color: '#0F172A',

@@ -115,6 +115,10 @@ export interface TranslationKeys {
   gold21: string;
   gold22: string;
   gold24: string;
+  // Legal
+  legalLabel: string;
+  privacyPolicyBtn: string;
+  termsConditionsBtn: string;
 }
 
 export const TRANSLATIONS: Record<Language, TranslationKeys> = {
@@ -204,6 +208,9 @@ export const TRANSLATIONS: Record<Language, TranslationKeys> = {
     gold21: 'زێڕی عەیاره 21',
     gold22: 'زێڕی عەیاره 22',
     gold24: 'زێڕی عەیاره 24',
+    legalLabel: 'یاساییەکان',
+    privacyPolicyBtn: 'سیاسەتی تایبەتمەندی',
+    termsConditionsBtn: 'مەرج و مەرجەکان',
   },
   arabic: {
     settingsTitle: 'الإعدادات',
@@ -291,6 +298,9 @@ export const TRANSLATIONS: Record<Language, TranslationKeys> = {
     gold21: 'ذهب عيار 21',
     gold22: 'ذهب عيار 22',
     gold24: 'ذهب عيار 24',
+    legalLabel: 'قانوني',
+    privacyPolicyBtn: 'سياسة الخصوصية',
+    termsConditionsBtn: 'الشروط والأحكام',
   },
   english: {
     settingsTitle: 'Settings',
@@ -378,6 +388,9 @@ export const TRANSLATIONS: Record<Language, TranslationKeys> = {
     gold21: '21K Gold',
     gold22: '22K Gold',
     gold24: '24K Gold',
+    legalLabel: 'Legal',
+    privacyPolicyBtn: 'Privacy Policy',
+    termsConditionsBtn: 'Terms & Conditions',
   },
 };
 

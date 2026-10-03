@@ -18,6 +18,7 @@ interface PlanContextType {
   daysRemaining: number;
   isPlanModalOpen: boolean;
   pendingPaymentExists: boolean;
+  userCode: string;
   openPlanModal: () => void;
   closePlanModal: () => void;
   toggleVip: () => void;
@@ -43,11 +44,36 @@ export function PlanProvider({
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
   const [pendingPaymentExists, setPendingPaymentExists] = useState(false);
+  const [profileUserCode, setProfileUserCode] = useState<string | null>(null);
 
   const userEmail = session?.user?.email;
   const userId = session?.user?.id;
+  const userCode = profileUserCode || generateUserCode(userEmail || userId);
   const userRole = getUserRole(userEmail, dbAdmins);
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
+
+  // The database profile code is the canonical code shown to support and
+  // stored on payment_requests. Keep the generated value only as an offline
+  // fallback while the profile loads.
+  useEffect(() => {
+    let active = true;
+    setProfileUserCode(null);
+
+    if (!userId) return () => { active = false; };
+
+    void supabase
+      .from('profiles')
+      .select('activation_code')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active && data?.activation_code) setProfileUserCode(data.activation_code);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   // ─── Single source of truth: user_subscriptions only ──────────────────────
   const checkSubscriptionStatus = async () => {
@@ -80,12 +106,6 @@ export function PlanProvider({
       setIsVip(false);
       setVipExpiresAt(null);
       setDaysRemaining(0);
-
-      // Auto-open modal on first load for free-tier users
-      if (!hasAutoOpened) {
-        setHasAutoOpened(true);
-        setTimeout(() => setIsPlanModalOpen(true), 600);
-      }
     } catch (err) {
       console.log('Error checking subscription status:', err);
       setIsVip(false);
@@ -136,15 +156,20 @@ export function PlanProvider({
   }, [userEmail, isOwnerOrAdmin]);
 
   const checkPendingPayment = async () => {
-    if (!userEmail) return;
+    if (!userId) {
+      setPendingPaymentExists(false);
+      return;
+    }
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('payment_requests')
         .select('id')
-        .eq('email', userEmail.trim().toLowerCase())
+        .eq('user_id', userId)
         .eq('status', 'pending')
+        .limit(1)
         .maybeSingle();
 
+      if (error) throw error;
       setPendingPaymentExists(!!data);
     } catch {
       setPendingPaymentExists(false);
@@ -152,39 +177,29 @@ export function PlanProvider({
   };
 
   const submitPaymentRequest = async (transactionRef?: string): Promise<PaymentSubmitResult> => {
-    if (!userEmail || !userId) return 'error';
+    if (!userId) return 'error';
 
-    const cleanEmail = userEmail.trim().toLowerCase();
+    const cleanEmail = userEmail?.trim().toLowerCase() || null;
 
     try {
-      // Anti-spam: Check for existing pending request
-      const { data: existing } = await supabase
-        .from('payment_requests')
-        .select('id')
-        .eq('email', cleanEmail)
-        .eq('status', 'pending')
-        .maybeSingle();
-
-      if (existing) {
-        setPendingPaymentExists(true);
-        return 'already_pending';
-      }
-
-      const userCode = generateUserCode(cleanEmail);
-
-      const { error: insertError } = await supabase.from('payment_requests').insert({
-        code: userCode,
-        email: cleanEmail,
-        user_id: userId,
-        status: 'pending',
-        transaction_ref: userCode,
-        created_at: new Date().toISOString(),
+      // Submit through one SECURITY DEFINER RPC. This avoids a client-side
+      // SELECT/INSERT race and keeps RLS, the profile code, and the pending
+      // unique constraint in one database transaction.
+      const { data, error: submitError } = await supabase.rpc('submit_payment_request', {
+        request_transaction_ref: transactionRef?.trim() || userCode,
       });
 
-      if (insertError) {
-        console.log('Error inserting payment_request:', insertError.message);
+      if (submitError) {
+        console.warn('Could not save activation request:', {
+          code: submitError.code,
+          details: submitError.details,
+          hint: submitError.hint,
+        });
         return 'error';
       }
+
+      const requestRow = Array.isArray(data) ? data[0] : data;
+      if (!requestRow?.id) return 'error';
 
       setPendingPaymentExists(true);
 
@@ -196,7 +211,14 @@ export function PlanProvider({
             'Content-Type': 'application/json',
             [N8N_AUTH_HEADER_NAME]: N8N_AUTH_HEADER_VALUE,
           },
-          body: JSON.stringify({ record: { code: userCode } }),
+          body: JSON.stringify({
+            record: {
+              id: requestRow.id,
+              code: requestRow.code || userCode,
+              email: requestRow.email || cleanEmail,
+              status: requestRow.status || 'pending',
+            },
+          }),
         });
       } catch (webhookErr) {
         console.log('n8n webhook error (non-blocking):', webhookErr);
@@ -249,7 +271,10 @@ export function PlanProvider({
     }
   };
 
-  const openPlanModal = () => setIsPlanModalOpen(true);
+  const openPlanModal = () => {
+    if (userId) void checkPendingPayment();
+    setIsPlanModalOpen(true);
+  };
   const closePlanModal = () => setIsPlanModalOpen(false);
   const toggleVip = () => setIsVip((prev) => !prev);
   const refreshSubscriptionStatus = async () => {
@@ -264,6 +289,7 @@ export function PlanProvider({
         daysRemaining,
         isPlanModalOpen,
         pendingPaymentExists,
+        userCode,
         openPlanModal,
         closePlanModal,
         toggleVip,

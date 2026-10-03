@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { LanguageProvider } from '@/context/language-context';
+import { RatesProvider } from '@/context/rates-context';
 import { ThemeProvider } from '@/context/theme-context';
 
 SplashScreen.preventAutoHideAsync();
@@ -11,9 +12,12 @@ export default function RootLayout() {
   return (
     <LanguageProvider>
       <ThemeProvider>
-        <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-          <Stack.Screen name="index" />
-        </Stack>
+        <RatesProvider>
+          <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="auth/callback" />
+          </Stack>
+        </RatesProvider>
       </ThemeProvider>
     </LanguageProvider>
   );

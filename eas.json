@@ -9,13 +9,38 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rsyinccrzotzoflbyqcf.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzeWluY2Nyem90em9mbGJ5cWNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNTM1MDMsImV4cCI6MjEwMDYyOTUwM30.P-cunG_Fw3EG9Wf65I4MvSeBna4ovuSFm5FT1R1e6_4",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "203802724518-rv2usuf0vclpr9vi7a5iu7fu2mnttlng.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "203802724518-mraudalsk3u38ul41aelh52q9arb010l.apps.googleusercontent.com",
+        "EXPO_PUBLIC_RATES_SNAPSHOT_URL": "https://shiny-truth-acfa.iskan-nrxakan.workers.dev/rates"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rsyinccrzotzoflbyqcf.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzeWluY2Nyem90em9mbGJ5cWNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwNTM1MDMsImV4cCI6MjEwMDYyOTUwM30.P-cunG_Fw3EG9Wf65I4MvSeBna4ovuSFm5FT1R1e6_4",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "203802724518-rv2usuf0vclpr9vi7a5iu7fu2mnttlng.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "203802724518-mraudalsk3u38ul41aelh52q9arb010l.apps.googleusercontent.com",
+        "EXPO_PUBLIC_RATES_SNAPSHOT_URL": "https://shiny-truth-acfa.iskan-nrxakan.workers.dev/rates"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6818052501",
+        "appleTeamId": "4CL78C9JJF",
+        "ascApiKeyPath": "./auth.p8",
+        "ascApiKeyIssuerId": "b894d106-bc24-43aa-b0ad-c99d0548e3c7",
+        "ascApiKeyId": "TM7B88UZV8"
+      }
+    }
   }
 }

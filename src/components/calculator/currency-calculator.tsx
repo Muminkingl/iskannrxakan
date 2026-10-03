@@ -6,8 +6,8 @@ import { FlagIcon } from '@/components/common/flag-icon';
 import { getCurrencyName } from '@/constants/translations';
 import { useLanguage } from '@/context/language-context';
 import { usePlan } from '@/context/plan-context';
+import { useRates } from '@/context/rates-context';
 import { useTheme } from '@/context/theme-context';
-import { supabase } from '@/lib/supabase';
 
 export interface CurrencyOption {
   code: string;
@@ -33,18 +33,13 @@ export const INITIAL_CURRENCIES: CurrencyOption[] = [
   { code: 'AUD', nameKurdish: 'دۆلاری ئوسترالی', flagCode: 'AU', rateInIqd: 981.5 },
 ];
 
-// ─── Module-level rate cache (shared across re-mounts, 5-min TTL) ──────────
-let _ratesCache: { data: CurrencyOption[]; fetchedAt: number } | null = null;
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
 export function CurrencyCalculator() {
   const { colors, isDark } = useTheme();
   const { t, language } = useLanguage();
   const { isVip, openPlanModal } = usePlan();
+  const { rates } = useRates();
   const isEnglish = language === 'english';
-  const [currencies, setCurrencies] = useState<CurrencyOption[]>(
-    _ratesCache?.data ?? INITIAL_CURRENCIES
-  );
+  const [currencies, setCurrencies] = useState<CurrencyOption[]>(INITIAL_CURRENCIES);
   const [inputText, setInputText] = useState('100');
   const [fromCurrency, setFromCurrency] = useState<CurrencyOption>(INITIAL_CURRENCIES[0]); // USD
   const [toCurrency, setToCurrency] = useState<CurrencyOption>(INITIAL_CURRENCIES[1]); // IQD
@@ -52,76 +47,28 @@ export function CurrencyCalculator() {
   const [pickerModalVisible, setPickerModalVisible] = useState(false);
   const [selectingTarget, setSelectingTarget] = useState<'from' | 'to'>('from');
 
-  // Fetch live rates from DB & subscribe to Realtime
+  // Rates are already fetched once by RatesProvider and shared by every tab.
   useEffect(() => {
-    const now = Date.now();
-    const isCacheValid = _ratesCache && now - _ratesCache.fetchedAt < CACHE_TTL_MS;
+    const byCode = new Map(rates.map((rate) => [rate.code, rate]));
+    const usdRate = byCode.get('USD') ?? byCode.get('IQD');
+    const usdSellInIqd = usdRate ? Number(usdRate.sellRate.replace(/,/g, '')) / 100 : 1503;
 
-    if (!isCacheValid) {
-      // Cache is stale or missing — fetch now
-      fetchRatesFromDb();
-    } else {
-      // Cache is fresh — restore selected currencies from cache
-      const cached = _ratesCache!.data;
-      setFromCurrency((prev) => cached.find((u) => u.code === prev.code) || prev);
-      setToCurrency((prev) => cached.find((u) => u.code === prev.code) || prev);
-    }
+    const updated: CurrencyOption[] = INITIAL_CURRENCIES.map((currency) => {
+      if (currency.code === 'IQD') return currency;
+      const row = byCode.get(currency.code);
+      if (!row) return currency;
 
-    const channel = supabase
-      .channel('calc_rates_realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rates' }, () => {
-        // DB changed — always bypass cache and re-fetch
-        fetchRatesFromDb(true);
-      })
-      .subscribe();
+      const sell = Number(row.sellRate.replace(/,/g, ''));
+      if (currency.code === 'USD' || sell > 1000) {
+        return { ...currency, rateInIqd: sell / 100 };
+      }
+      return { ...currency, rateInIqd: (sell / 100) * usdSellInIqd };
+    });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const fetchRatesFromDb = async (forceRefresh = false) => {
-    // Skip if cache is still valid and not forced
-    if (!forceRefresh && _ratesCache && Date.now() - _ratesCache.fetchedAt < CACHE_TTL_MS) {
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.from('rates').select('*');
-      if (error || !data || data.length === 0) return;
-
-      const usdRow = data.find((r) => r.base_currency_code === 'USD');
-      const usdSellInIqd = usdRow ? Number(usdRow.sell_rate) / 100 : 1503;
-
-      const updated: CurrencyOption[] = INITIAL_CURRENCIES.map((c) => {
-        if (c.code === 'IQD') return c;
-        const row = data.find((r) => r.base_currency_code === c.code);
-        if (!row) return c;
-
-        const sell = Number(row.sell_rate);
-
-        if (c.code === 'USD') {
-          return { ...c, rateInIqd: sell / 100 };
-        }
-        if (row.quote_currency_code === 'IQD' && sell > 1000) {
-          return { ...c, rateInIqd: sell / 100 };
-        }
-        // If rate is in USD (e.g., EUR 113.9 = $1.139)
-        return { ...c, rateInIqd: (sell / 100) * usdSellInIqd };
-      });
-
-      // Store in module-level cache
-      _ratesCache = { data: updated, fetchedAt: Date.now() };
-
-      setCurrencies(updated);
-
-      // Refresh currently selected from/to
-      setFromCurrency((prev) => updated.find((u) => u.code === prev.code) || prev);
-      setToCurrency((prev) => updated.find((u) => u.code === prev.code) || prev);
-    } catch (err) {
-      console.log('Error fetching calc rates:', err);
-    }
-  };
+    setCurrencies(updated);
+    setFromCurrency((prev) => updated.find((u) => u.code === prev.code) || prev);
+    setToCurrency((prev) => updated.find((u) => u.code === prev.code) || prev);
+  }, [rates]);
 
 
   const handleKeyPress = (val: string) => {

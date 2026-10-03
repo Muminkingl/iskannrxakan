@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
-  SlideInRight,
-  SlideOutLeft,
+  FadeIn,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -104,8 +103,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       <View style={[styles.slideWrapper, width >= 640 && styles.desktopWidth]}>
         <Animated.View
           key={slide.id}
-          entering={SlideInRight.duration(340).springify()}
-          exiting={SlideOutLeft.duration(260)}
+          entering={FadeIn.duration(200)}
           style={styles.slideCard}
         >
           {/* Hero Illustration */}
@@ -113,7 +111,6 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             <Image
               source={illustrations[currentStep]}
               contentFit="cover"
-              transition={200}
               style={styles.illustration}
             />
           </View>
