@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="dark">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="theme-color" content="#10121b">
+    <title>Iskan System</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://telegram.org/js/telegram-web-app.js?64" defer></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <div class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><div><p class="eyebrow">PRIVATE WORKSPACE</p><h1>Iskan <span>System</span></h1></div></div>
+        <span class="owner-tag" id="owner-tag" hidden><span class="status-dot"></span>Owner</span>
+      </header>
+
+      <section id="gate" class="gate panel" aria-live="polite">
+        <span class="gate-mark" aria-hidden="true">⌁</span>
+        <h2 id="gate-title">Opening your workspace</h2>
+        <p id="gate-description">Verifying your Telegram session…</p>
+        <button class="secondary" id="gate-retry" hidden>Try again</button>
+      </section>
+
+      <div id="workspace" hidden>
+        <section class="intro"><div><p class="eyebrow">MEMBERSHIP CONTROL</p><h2>A clear view of your members.</h2><p>Manage manual Premium access in one place.</p></div></section>
+        <section class="stats" aria-label="Membership overview">
+          <article class="stat"><span class="stat-label">Active members</span><strong id="stat-active">—</strong><span class="stat-foot"><span class="status-dot"></span>Manual Premium</span></article>
+          <article class="stat"><span class="stat-label">Expiring soon</span><strong id="stat-expiring">—</strong><span class="stat-foot">Within the next 7 days</span></article>
+        </section>
+        <nav class="tabs" aria-label="Workspace pages">
+          <button id="members-tab" class="tab selected" aria-current="page">Members</button>
+          <button id="add-tab" class="tab"><span aria-hidden="true">＋</span> Add member</button>
+        </nav>
+
+        <section id="members-page">
+          <div class="section-heading"><div><h2>Active subscriptions</h2><p>Find a member or end their manual access.</p></div><button id="reload-members" class="icon-button" aria-label="Reload members">↻</button></div>
+          <form id="search-form" class="search-form" role="search"><label class="sr-only" for="search">Search members</label><input id="search" maxlength="120" type="search" placeholder="Name, email or account reference" autocomplete="off"><button class="secondary" type="submit">Search</button></form>
+          <p id="members-status" class="list-status" role="status"></p>
+          <div id="member-list" class="member-list"></div>
+          <button id="load-more" class="secondary load-more" hidden>Load more members</button>
+        </section>
+
+        <section id="add-page" hidden>
+          <div class="section-heading"><div><h2>Add Premium access</h2><p>Find the account first. Confirm before activating.</p></div><span class="period-chip">30 days</span></div>
+          <article class="panel add-panel">
+            <span class="step-label">01 / FIND MEMBER</span><h3>Start with their unique code.</h3><p>Paste the account reference your member sent on WhatsApp.</p>
+            <form id="lookup-form"><label for="reference">Account reference</label><input id="reference" class="reference-input" maxlength="40" placeholder="CHYA-9D66D8" autocomplete="off" autocapitalize="characters" spellcheck="false" required><button id="lookup-button" class="primary" type="submit">Find member <span aria-hidden="true">→</span></button></form>
+          </article>
+          <article id="lookup-result" class="panel lookup-result" hidden></article>
+        </section>
+        <footer class="footer"><span class="lock-icon" aria-hidden="true">◇</span> Owner-only Telegram session <span class="footer-divider">·</span> Times shown in Baghdad</footer>
+      </div>
+      <p id="toast" class="toast" role="status" hidden></p>
+    </main>
+
+    <dialog id="confirmation-dialog" aria-labelledby="confirmation-title">
+      <div class="dialog-content"><span id="confirmation-label" class="step-label"></span><h2 id="confirmation-title"></h2><p id="confirmation-description"></p><div id="confirmation-member" class="confirmation-member"></div><p id="confirmation-note" class="confirmation-note"></p><p id="confirmation-error" class="inline-error" role="alert" hidden></p><div class="dialog-actions"><button id="confirmation-cancel" class="secondary">Cancel</button><button id="confirmation-submit" class="primary">Confirm</button></div></div>
+    </dialog>
+  </body>
+</html>

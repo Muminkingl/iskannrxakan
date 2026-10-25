@@ -1,25 +1,40 @@
 import { supabase } from '@/lib/supabase';
 import type { UserRole } from '@/types/market';
 
-export const OWNER_EMAIL = 'muminrtx@gmail.com';
+export type AccountState = {
+  role: UserRole;
+  isDeleted: boolean;
+  activationCode: string | null;
+  isVip: boolean;
+  vipExpiresAt: string | null;
+  pendingPayment: boolean;
+  storePremiumActive: boolean;
+};
 
-export function getUserRole(
-  email?: string | null,
-  dbAdmins: string[] = []
-): UserRole {
-  if (!email) return 'user';
-  const cleanEmail = email.trim().toLowerCase();
+function parseRole(value: unknown): UserRole {
+  return value === 'owner' || value === 'admin' ? value : 'user';
+}
 
-  if (cleanEmail === OWNER_EMAIL.toLowerCase()) {
-    return 'owner';
+/**
+ * Fetch only the signed-in user's account state through the security-definer
+ * RPC. This replaces the old startup fan-out and never returns the admin list.
+ */
+export async function fetchAccountState(): Promise<AccountState | null> {
+  const { data, error } = await supabase.rpc('get_my_account_state');
+  if (error || !data || typeof data !== 'object') {
+    return null;
   }
 
-  const isAdmin = dbAdmins.some((e) => e.trim().toLowerCase() === cleanEmail);
-  if (isAdmin) {
-    return 'admin';
-  }
-
-  return 'user';
+  const state = data as Record<string, unknown>;
+  return {
+    role: parseRole(state.role),
+    isDeleted: state.is_deleted === true,
+    activationCode: typeof state.activation_code === 'string' ? state.activation_code : null,
+    isVip: state.is_vip === true,
+    vipExpiresAt: typeof state.vip_expires_at === 'string' ? state.vip_expires_at : null,
+    pendingPayment: state.pending_payment === true,
+    storePremiumActive: state.store_premium_active === true,
+  };
 }
 
 export async function fetchDbAdmins(): Promise<string[]> {

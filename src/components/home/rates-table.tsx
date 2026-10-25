@@ -15,7 +15,7 @@ interface RatesTableProps {
 export function RatesTable({ rates }: RatesTableProps) {
   const { colors, isDark } = useTheme();
   const { t, language } = useLanguage();
-  const { isVip, openPlanModal } = usePlan();
+  const { isPremium, openPlanModal } = usePlan();
   const isEnglish = language === 'english';
 
   return (
@@ -49,7 +49,7 @@ export function RatesTable({ rates }: RatesTableProps) {
         {rates.map((rate) => (
           <Pressable
             key={rate.id}
-            onPress={!isVip ? openPlanModal : undefined}
+            onPress={!isPremium ? openPlanModal : undefined}
             style={[styles.tableRow, { borderBottomColor: colors.borderColor }, isEnglish && styles.rowLtr]}
           >
             {/* CURRENCY */}
@@ -78,7 +78,7 @@ export function RatesTable({ rates }: RatesTableProps) {
 
             {/* BUY */}
             <View style={styles.colBuy}>
-              {isVip ? (
+              {isPremium ? (
                 <View style={[styles.buyPill, isDark && { backgroundColor: '#0F1950', borderColor: '#1E3A8A' }]}>
                   <Text
                     numberOfLines={1}
@@ -99,7 +99,7 @@ export function RatesTable({ rates }: RatesTableProps) {
 
             {/* SELL */}
             <View style={[styles.colSell, isEnglish && styles.alignRight]}>
-              {isVip ? (
+              {isPremium ? (
                 <View style={[styles.sellPill, isDark && { backgroundColor: '#3B0A0A', borderColor: '#7F1D1D' }]}>
                   <Text
                     numberOfLines={1}

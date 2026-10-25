@@ -114,25 +114,9 @@ export function AuthScreen({ deletedAccountEmail, onClearDeletedError }: AuthScr
         });
       }
 
-      const { data, error } = result;
+      const { error } = result;
 
       if (error) throw error;
-
-      // ── Check deleted accounts ───────────────────────────────────────────
-      const email = data.user.email?.toLowerCase().trim();
-      if (email) {
-        const { data: deletedAccount } = await supabase
-          .from('deleted_accounts')
-          .select('email')
-          .eq('email', email)
-          .maybeSingle();
-
-        if (deletedAccount) {
-          await supabase.auth.signOut({ scope: 'local' });
-          handleBlockedAccount(email);
-          return;
-        }
-      }
 
       // ── Save full name in background (non-blocking) ──────────────────────
       // This was causing the 4-second delay before. Fire-and-forget here so
@@ -306,7 +290,7 @@ function GoogleSignInButton({
           const refreshToken = params.get('refresh_token');
 
           if (accessToken && refreshToken) {
-            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+            const { error: sessionError } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken,
             });
@@ -316,21 +300,6 @@ function GoogleSignInButton({
               return;
             }
 
-            // Check if this account is deleted
-            const userEmail = sessionData?.user?.email?.toLowerCase().trim();
-            if (userEmail) {
-              const { data: isDeleted } = await supabase
-                .from('deleted_accounts')
-                .select('email')
-                .eq('email', userEmail)
-                .maybeSingle();
-
-              if (isDeleted) {
-                await supabase.auth.signOut({ scope: 'local' });
-                onBlockedAccount(userEmail);
-                return;
-              }
-            }
           }
         }
       }

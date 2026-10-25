@@ -2,303 +2,11 @@ import { useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Language } from '@/constants/translations';
+import { PRIVACY_POLICY_CONTENT, TERMS_CONTENT } from '@/constants/legal';
+import type { Language } from '@/constants/translations';
 import { useLanguage } from '@/context/language-context';
 import { checkNotificationPermission, requestNotificationPermission } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
-
-// ─── Multi-Language Policy Contents ──────────────────────────────────────────
-
-const PRIVACY_POLICY_CONTENT: Record<Language, string> = {
-  kurdish: `**سیاسەتی تایبەتمەندی**
-
-ئەم سیاسەتەی تایبەتمەندییە بۆ ئەپڵیکەیشنی (ئیسکان نرخەکان)ـی ئامێرە مۆبایلەکان جێبەجێ دەبێت، لەگەڵ هەر خزمەتگوزارییەکی پەیوەندیدار کە لەلایەن (مۆمین) بەڕێوەدەبرێت (بە کۆمەڵ پێیان دەوترێت "ئەپڵیکەیشن").
-
-**زانیارییە کۆکراوەکان**
-
-کاتێک ئەپڵیکەیشنەکە بەکاردەهێنیت، بەم شێوەیە زانیارییەکان لەوانەیە کۆبکرێنەوە:
-• نیشانی پرۆتۆکۆڵی ئینتەرنێتی ئامێرەکەت (IP)
-• لاپەڕە سەردانکراوەکانی ناو ئەپڵیکەیشن، بەروار و کاتی سەردانیکردن
-• ئەو کاتەی لەناو ئەپڵیکەیشنەکە بەسەر براوە
-• سیستەمی کارپێکردنی مۆبایلەکەت
-
-**سەلماندنی ناسنامە و زانیاری هەژمار**
-
-ئەپڵیکەیشنەکە Google Sign-In و Sign in with Apple بەکاردەهێنێت بۆ سەلماندنی ناسنامەی بەکارهێنەران. کاتێک بە یەکێک لەم خزمەتگوزارییانە دەچیتە ژوورەوە، ئیمەیڵ و ناسێنەری تایبەتی ئەکاونتەکەت وەردەگرین بۆ دروستکردن و بەڕێوەبردنی هەژمارەکەت. لە Sign in with Apple دەتوانیت هەڵبژێریت ئیمەیڵەکەت بشاریتەوە؛ لەم حاڵەتەدا Apple دەتوانێت ئیمەیڵێکی تایبەتی (relay) بەکاربهێنێت. ئەپڵیکەیشنەکە زانیاری شوێنپێهەڵگرتنی جۆگرافی (GPS) کۆناکاتەوە.
-
-**زانیاری هەژماری VIP**
-
-ئەگەر بەشداری لە پلانی (VIP) بکەیت، دەستگەیشتن لە ڕێگەی کۆدی ناسێنەری پشتڕاستکراوە بەڕێوەدەبرێت کە لەلایەن بەڕێوەبەرایەتی دەدرێت. ئەپڵیکەیشنەکە هیچ زانیارییەکی کارتی بانکی یان هەژماری بانکی تۆ کۆناکاتەوە و پاشەکەوتی ناکات.
-
-**سڕینەوەی هەژمار و بەڕێوەبردنی زانیارییەکان**
-
-بەکارهێنەران مافی تەواویان هەیە لە هەر کاتێکدا داوای سڕینەوەی هەمیشەیی هەژمار و سەرجەم زانیارییە پەیوەندیدارەکانیان بکەن:
-١. لەناو ئەپڵیکەیشن: بچۆ بەشی ڕێکخستنەکان (Settings) > کرتە بکە لەسەر "سڕینەوەی هەژمار و زانیاری" بۆ سڕینەوەی دەستبەجێ.
-٢. لە ڕێگەی ئیمەیڵ: دەتوانیت داواکاری سڕینەوەی هەژمارەکەت بنێریت بۆ muminrtx@gmail.com لە ڕێگەی ئەو ئیمەیڵەی تۆمارت کردووە.
-
-**دەستگەیشتنی لایەنی سێیەم**
-
-تەنها زانیاری گشتی و بێناونیشان ناوبەناو بۆ خزمەتگوزارییە دەرەکییەکان دەنێردرێت بۆ یارمەتیدان لە باشترکردنی ئەپڵیکەیشنەکە. ئێمە زانیارییە کەسییەکانت بە هیچ لایەنێکی سێیەم ناخۆین و نایفڕۆشین.
-
-**پاراستنی زانیارییەکان**
-
-زانیاری هەژماری بەکارهێنەران بۆ ماوەی بەکارهێنانی ئەپڵیکەیشنەکە و ١٢ مانگ دوای ئەوەش دەهێڵرێتەوە، مەگەر یاسا ماوەیەکی درێژتر داوا بکات.
-
-**منداڵان**
-
-ئەم ئەپڵیکەیشنە بۆ منداڵانی ژێر تەمەنی ١٦ ساڵ دیاری نەکراوە. ئێمە بە ئەنقەست زانیاری لە منداڵان کۆناکەینەوە.
-
-**ئاسایش**
-
-ئێمە ڕێکاری جەستەیی، ئەلیکترۆنی و یاسایی دابین دەکەین بۆ پاراستنی ئەو زانیارییانەی پرۆسەیان دەکەین و دەیانپارێزین.
-
-**گۆڕانکارییەکان**
-
-ئێمە لەوانەیە ناوبەناو ئەم سیاسەتەی تایبەتمەندییە نوێ بکەینەوە. گۆڕانکارییە گرنگەکان لە ڕێگەی بڵاوکردنەوەی سیاسەتە نوێکراوەکە بە بەروارێکی کارپێکراوەوە ڕادەگەیەنین.
-
-**پەیوەندیکردن بە ئێمە**
-
-ئەگەر هەر پرسیارێکت هەبوو سەبارەت بە تایبەتمەندی، تکایە پەیوەندیمان پێوە بکە لە ڕێگەی ئیمەیڵی:
-muminrtx@gmail.com
-
-بەرواری کارپێکردن: ٢٠٢٦-٠٨-٠٩`,
-
-  arabic: `**سياسة الخصوصية**
-
-تنطبق سياسة الخصوصية هذه على تطبيق (إسكان نرخەكان) للأجهزة المحمولة، إلى جانب أي خدمات ذات صلة يديرها مؤمن (المشار إليها إجمالاً بـ "التطبيق").
-
-**المعلومات التي نجمعها**
-
-عند استخدام التطبيق، قد نجمع:
-• عنوان بروتوكول الإنترنت (IP) الخاص بجهازك
-• الصفحات التي تمت زيارتها داخل التطبيق، وتاريخ ووقت الزيارة
-• الوقت المنقضي في التطبيق
-• نظام تشغيل هاتفك المحمول
-
-**مصادقة الحساب ومعلوماته**
-
-يستخدم التطبيق تسجيل الدخول عبر Google وميزة تسجيل الدخول باستخدام Apple للتحقق من هوية المستخدمين. عند تسجيل الدخول بإحدى هاتين الخدمتين، نتلقى بريدك الإلكتروني ومعرفًا فريدًا لحسابك لإنشاء حسابك وإدارته. عند استخدام Apple، يمكنك اختيار إخفاء بريدك الإلكتروني؛ وفي هذه الحالة قد تزودنا Apple بعنوان بريد إلكتروني خاص لإعادة التوجيه (relay). لا يجمع التطبيق بيانات الموقع الجغرافي (GPS).
-
-**معلومات حساب VIP**
-
-إذا اشتركت في خطة (VIP)، فسيتم إدارة الوصول عبر مفاتيح تفعيل معتمدة ومؤكدة. لا يجمع التطبيق أو يخزن تفاصيل بطاقة الدفع أو الحساب المصرفي الخاص بك.
-
-**حذف الحساب وإدارة البيانات**
-
-يحق للمستخدمين طلب حذف حساباتهم وجميع البيانات المرتبطة بها في أي وقت:
-1. من داخل التطبيق: الانتقال إلى الإعدادات > الضغط على "حذف الحساب والبيانات" لإزالة الحساب نهائياً وفورياً.
-2. عبر البريد الإلكتروني: يمكنك إرسال طلب حذف الحساب إلى muminrtx@gmail.com من بريدك الإلكتروني المسجل.
-
-**وصول أطراف خارجية**
-
-تتم ممارسة نقل البيانات التجميعية والجهولة فقط بشكل دوري إلى الخدمات الخارجية للمساعدة في تحسين التطبيق. نحن لا نبيع بياناتك الشخصية لأطراف خارجية.
-
-**الاحتفاظ بالبيانات**
-
-يتم الاحتفاظ ببيانات حساب المستخدم طوال فترة استخدامك للتطبيق بالإضافة إلى 12 شهرًا بعد ذلك، ما لم يتطلب القانون فترة أطول.
-
-**الأطفال**
-
-التطبيق غير موجه للأطفال دون سن 16 عامًا. نحن لا نجمع بيانات من الأطفال عن علم.
-
-**الأمان**
-
-نوفر ضمانات مادية وإلكترونية وإجرائية لحماية المعلومات التي نعالجها ونحافظ عليها.
-
-**التغييرات**
-
-قد نحدث سياسة الخصوصية هذه من وقت لآخر. سنخطرك بالتغييرات الجوهرية عن طريق نشر السياسة المحدثة بتاريخ سريان.
-
-**اتصل بنا**
-
-إذا كانت لديك أي أسئلة حول الخصوصية، يرجى الاتصال بنا على البريد الإلكتروني:
-muminrtx@gmail.com
-
-تاريخ السريان: 2026-08-09`,
-
-  english: `**Privacy Policy**
-
-This privacy policy applies to the Iskan Nrxakan app for mobile devices, together with any related services operated by Mumin (collectively, the "Application").
-
-**Information We Collect**
-
-When you use the Application, we may collect:
-• Your device's Internet Protocol (IP) address
-• Pages visited within the Application, date and time of visit
-• Time spent on the Application
-• Your mobile operating system
-
-**Authentication and Account Information**
-
-The Application uses Google Sign-In and Sign in with Apple to authenticate users. When you sign in with either provider, we receive your email address and a provider-specific account identifier to create and manage your account. With Sign in with Apple, you may choose to hide your email address; Apple may then provide a private relay email address. The Application does not collect GPS location data.
-
-**VIP Account Information**
-
-If you activate the VIP plan, access is managed through verified activation keys. The Application does not collect or store your payment card or bank details.
-
-**Account Deletion and Data Management**
-
-Users have the right to request deletion of their account and associated data at any time:
-1. In-App: Go to Settings > tap "Delete Account & Data" to immediately and permanently remove your account, session, and associated records.
-2. Email Request: You may submit an account and data deletion request by emailing muminrtx@gmail.com with your registered email address.
-
-**Third Party Access**
-
-Only aggregated, anonymized data is periodically transmitted to external services to aid in improving the Application. We do not sell your personal data to third parties.
-
-**Data Retention**
-
-User account data is retained for the duration of your use of the Application plus 12 months, unless longer retention is required by law.
-
-**Children**
-
-The Application is not intended for children under 16 years of age. We do not knowingly collect data from children.
-
-**Security**
-
-We provide physical, electronic, and procedural safeguards to protect information we process and maintain.
-
-**Changes**
-
-We may update this Privacy Policy from time to time. We will notify you of material changes by posting the updated policy with an effective date.
-
-**Contact Us**
-
-If you have any questions regarding privacy, please contact us at:
-muminrtx@gmail.com
-
-Effective as of 2026-08-09`,
-};
-
-const TERMS_CONTENT: Record<Language, string> = {
-  kurdish: `**مەرج و شوێنکەوتەکان**
-
-ئەم مەرج و شوێنکەوتانە بۆ ئەپڵیکەیشنی (ئیسکان نرخەکان) لەسەر ئامێرە مۆبایلەکان جێبەجێ دەبن کە لەلایەن (مۆمین) بەڕێوەدەبرێت.
-
-بە دابەزاندن یان بەکارهێنانی ئەپڵیکەیشنی، تۆ ڕەزامەندی دەدەیت لەسەر ئەم مەرج و شوێنکەوتانە.
-
-**مۆڵەت**
-
-دابینکەری خزمەتگوزاری مۆڵەتێکی سنووردار، نا-تایبەت، نا-گوێزراوە، و پاشگەزبووەوەت پێدەبەخشێت بۆ دامەزراندن و بەکارهێنانی ئەپڵیکەیشنەکە لەسەر ئامێری مۆبایل بۆ مەبەستی کەسی یان بازرگانی ناوخۆیی. تۆ مافی ئەوەت نییە ئەپڵیکەیشنەکە کۆپی بکەیت، بڵاوی بکەیتەوە، دەستکاری بکەیت، یان بەرنامەسازی پێچەوانەی بۆ بکەیت.
-
-**مافی موڵکایەتی بیرۆکەیی**
-
-دابینکەری خزمەتگوزاری سەرجەم مافەکانی موڵکایەتی بیرۆکەیی لە ئەپڵیکەیشنەکەدا دەپارێزێت، لەوانەش کۆدەکەی، دیزاین، نیشانە بازرگانییەکان، و براندەکەی. هیچ شتێک لەم مەرجانەدا مافی بەکارهێنانی نیشانە بازرگانییەکان یان لۆگۆکانی دابینکەری خزمەتگوزاریت پێنابەخشێت.
-
-**بەشداری و چالاککردنی VIP**
-
-ئەپڵیکەیشنەکە پلانی بەشداری (VIP) دابین دەکات کە لە ڕێگەی کۆدی ناسێنەری چالاککردن پشتڕاست دەکرێتەوە. مەرجەکانی بەشداری و سیاسەتەکان لەناو ئەپڵیکەیشنەکەدا ڕوونکراونەتەوە.
-
-**سنووردارکردنی بەرپرسیارێتی**
-
-تا ئەو پەڕەی یاسا ڕێگەی پێدەدات، دابینکەری خزمەتگوزاری بەرپسیار ناباتە ئەستۆ بەرامبەر هەر زیانێکی ناڕاستەوخۆ، ڕێکەوت، یان دەرئەنجامی، لەوانەش لەدەستدانی قازانج، لەدەستدانی زانیاری، یان وەستانی کار.
-
-دابینکەری خزمەتگوزاری هیچ بەرپرسیارێتییەک لە ئەستۆ ناگرێت بەرامبەر ناڕاستی لە زانیارییەکانی نرخی دراوەکانی لایەنی سێیەم کە لە ڕێگەی ئەم ئەپڵیکەیشنەوە نیشان دەدرێن.
-
-**کۆتایی پێهێنان**
-
-دابینکەری خزمەتگوزاری دەتوانێت دەستگەیشتنت بۆ ئەپڵیکەیشنەکە ڕابگرێت یان کۆتایی پێبهێنێت ئەگەر بە شێوەیەکی مادی ئەم مەرجانە پێشێل بکەیت.
-
-**یاسای کارپێکراو**
-
-ئەم مەرج و شوێنکەوتانە بەپێی یاساکانی ئەو دەسەڵاتە بەڕێوەدەبرێن کە دابینکەری خزمەتگوزاری تێیدا دامەزراوە.
-
-**گۆڕانکارییەکان**
-
-دابینکەری خزمەتگوزاری دەتوانێت ناوبەناو ئەم مەرجانە نوێ بکاتەوە. پێشنیارت بۆ دەکرێت کە بە بەردەوامی سەردانی ئەم لاپەڕەیە بکەیت بۆ هەر گۆڕانکارییەک.
-
-**پەیوەندیکردن بە ئێمە**
-
-ئەگەر هەر پرسیارێکت هەبوو سەبارەت بەم مەرج و شوێنکەوتانە، تکایە پەیوەندیمان پێوە بکە لە ڕێگەی ئیمەیڵی:
-muminrtx@gmail.com
-
-بەرواری کارپێکردن: ٢٠٢٦-٠٨-٠٩`,
-
-  arabic: `**الشروط والأحكام**
-
-تنطبق هذه الشروط والأحكام على تطبيق (إسكان نرخەكان) للأجهزة المحمولة الذي يديره مؤمن.
-
-بتنزيل التطبيق أو استخدامه، فإنك توافق على هذه الشروط والأحكام.
-
-**الترخيص**
-
-يمنحك مقدم الخدمة ترخيصًا محدودًا وغير حصري وغير قابل للنقل وقابلاً للإلغاء لتثبيت التطبيق واستخدامه على جهاز محمول لأغراض شخصية أو تجارية داخلية. لا يجوز لك إعادة إنتاج التطبيق أو توزيعه أو تعديله أو هندسته عكسياً.
-
-**الملكية الفكرية**
-
-يحتفظ مقدم الخدمة بجميع حقوق الملكية الفكرية في التطبيق، بما في ذلك الكود والتصميم والعلامات التجارية والهوية التجارية. لا شيء في هذه الشروط يمنحك أي حق في استخدام العلامات التجارية أو الشعارات الخاصة بمقدم الخدمة.
-
-**الاشتراك وتفعيل VIP**
-
-يقدم التطبيق خطة (VIP) يتم تفعيلها عبر مفاتيح الحساب المعتمدة. يتم توضيح شروط الاشتراك وسياسات الوصول داخل التطبيق.
-
-**حدود المسؤولية**
-
-إلى أقصى حد يسمح به القانون، لا يكون مقدم الخدمة مسؤولاً عن أي أضرار غير مباشرة أو عرضية أو تبعية، بما في ذلك على سبيل المثال لا الحصر خسارة الأرباح أو فقدان البيانات أو توقف الأعمال.
-
-لا يتحمل مقدم الخدمة أي مسؤولية عن عدم الدقة في بيانات أسعار الصرف الخاصة بأطراف خارجية والمطبوعة عبر هذا التطبيق.
-
-**الإنهاء**
-
-يجوز لمقدم الخدمة تعليق أو إنهاء وصولك إلى التطبيق إذا انتهكت هذه الشروط بشكل مادي.
-
-**القانون الساري**
-
-تخضع هذه الشروط والأحكام لقوانين الولاية القضائية التي تم تأسيس مقدم الخدمة فيها.
-
-**التغييرات**
-
-قد يحدث مقدم الخدمة هذه الشروط بشكل دوري. يُنصح بمراجعة هذه الصفحة بانتظام لمعرفة أي تغييرات.
-
-**اتصل بنا**
-
-إذا كانت لديك أي أسئلة حول هذه الشروط والأحكام، يرجى الاتصال بنا على البريد الإلكتروني:
-muminrtx@gmail.com
-
-تاريخ السريان: 2026-08-09`,
-
-  english: `**Terms & Conditions**
-
-These terms and conditions apply to the Iskan Nrxakan app for mobile devices operated by Mumin.
-
-By downloading or using the Application, you agree to these Terms and Conditions.
-
-**License**
-
-The Service Provider grants you a limited, non-exclusive, non-transferable, revocable license to install and use the Application on a mobile device for personal or internal business purposes. You may not reproduce, distribute, modify, reverse engineer, or decompile the Application.
-
-**Intellectual Property**
-
-The Service Provider retains all intellectual property rights in the Application, including its code, design, trademarks, and branding. Nothing in these Terms grants you any right to use the Service Provider's trademarks or logos.
-
-**VIP Access & Terms**
-
-The Application offers a VIP access plan activated via verified account keys. Terms, features, and policies are communicated within the Application.
-
-**Limitation of Liability**
-
-To the fullest extent permitted by law, the Service Provider shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to lost profits, data loss, or business interruption.
-
-The Service Provider accepts no liability for inaccuracies in third-party exchange rate data displayed through this Application.
-
-**Termination**
-
-The Service Provider may suspend or terminate your access to the Application if you materially breach these Terms.
-
-**Governing Law**
-
-These Terms and Conditions are governed by the laws of the jurisdiction in which the Service Provider is established.
-
-**Changes**
-
-The Service Provider may periodically update these Terms. You are advised to review this page regularly for any changes.
-
-**Contact Us**
-
-If you have any questions about these Terms and Conditions, please contact us at:
-muminrtx@gmail.com
-Effective as of 2026-08-09`,
-};
 
 // ─── Sub-modal component for displaying policy text ──────────────────────────
 
@@ -397,10 +105,10 @@ function DeleteAccountModal({
 
   const title = isEn ? 'Delete Account & Data' : isAr ? 'حذف الحساب والبيانات' : 'سڕینەوەی هەژمار و زانیاری';
   const warningText = isEn
-    ? 'Warning: This action is permanent and cannot be undone. All your settings, subscriptions, and records will be deleted immediately.'
+    ? 'This permanently deletes your account and associated account data. An internet connection is required. We may retain a limited email record to prevent the account from being recreated. Deleting your account does not cancel an Apple subscription; manage or cancel it in your Apple Account subscription settings.'
     : isAr
-    ? 'تحذير: هذا الإجراء دائم ولا يمكن التراجع عنه. سيتم حذف جميع إعداداتك واشتراكاتك وسجلاتك نهائياً.'
-    : 'ئاگاداری: ئەم کردارە هەمیشەییە و ناگەڕێندرێتەوە. سەرجەم ڕێکخستنەکان، بەشدارییەکان، و تۆمارەکانت بە یەکجاری دەسڕدرێنەوە.';
+    ? 'سيؤدي هذا إلى حذف حسابك والبيانات المرتبطة به نهائياً. يلزم الاتصال بالإنترنت. قد نحتفظ بسجل محدود للبريد الإلكتروني لمنع إعادة إنشاء الحساب. حذف الحساب لا يلغي اشتراك Apple؛ يمكنك إدارته أو إلغاؤه من إعدادات اشتراكات حساب Apple.'
+    : 'ئەم کردارە هەژمارەکەت و زانیاری پەیوەندیدارەکانی بە هەمیشەیی دەسڕێتەوە. پەیوەندی ئینتەرنێت پێویستە. لەوانەیە تۆمارێکی سنوورداری ئیمەیڵ بپارێزرێت بۆ ڕێگریکردن لە دروستکردنەوەی هەژمارەکە. سڕینەوەی هەژمار بەشداریی Apple هەڵناوەشێنێتەوە؛ لە ڕێکخستنەکانی بەشداریی هەژماری Apple بەڕێوەی ببە یان هەڵیوەشێنەوە.';
 
   const promptText = isEn
     ? `To confirm, please type "${targetWord}" below:`
@@ -533,48 +241,68 @@ export function SettingsModal({ visible, onClose }: SettingsModalProps) {
 
   const handleConfirmDelete = async () => {
     setIsDeleting(true);
-    const targetEmail = currentUserEmail ? currentUserEmail.trim().toLowerCase() : null;
 
     try {
-      // 1. Call server-side SECURITY DEFINER RPC to safely record in deleted_accounts,
-      // delete user, and nullify foreign keys
       const { data, error } = await supabase.rpc('delete_user_account');
-      if (error) {
-        console.warn('delete_user_account RPC response:', error);
-      }
-    } catch (err) {
-      console.log('Account delete cleanup:', err);
-    }
+      if (error) throw error;
 
-    // 2. Extra client safeguard to ensure email is permanently marked in deleted_accounts
-    if (targetEmail) {
+      // Some deployments return a boolean/JSON result; treat an explicit
+      // negative result as failure. A successful void RPC returns null.
+      const deletionResult = Array.isArray(data) ? data[0] : data;
+      if (
+        deletionResult === false ||
+        (deletionResult !== null &&
+          typeof deletionResult === 'object' &&
+          'success' in deletionResult &&
+          deletionResult.success === false)
+      ) {
+        throw new Error('Account deletion was not confirmed');
+      }
+
+      // The server-side RPC owns deletion and related-record cleanup. Clear
+      // only this device's session after the server confirms completion.
       try {
-        await supabase.from('deleted_accounts').upsert({ email: targetEmail });
-        await supabase.from('payment_requests').delete().eq('email', targetEmail);
-        await supabase.from('user_subscriptions').delete().eq('email', targetEmail);
-      } catch (err) {
-        console.log('Client delete cleanup:', err);
+        const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+        if (signOutError) {
+          console.warn('Could not clear the local session after account deletion:', signOutError.code);
+        }
+      } catch {
+        // The account deletion has already succeeded on the server.
       }
+
+      setShowDeleteModal(false);
+      setIsLoggedIn(false);
+      setCurrentUserEmail(null);
+      onClose();
+
+      const isEn = language === 'english';
+      const isAr = language === 'arabic';
+      Alert.alert(
+        isEn ? 'Account Deleted' : isAr ? 'تم حذف الحساب' : 'هەژمار سڕایەوە',
+        isEn
+          ? 'Your account deletion was completed. You can no longer sign in with this account.'
+          : isAr
+          ? 'اكتمل حذف حسابك. لم يعد بإمكانك تسجيل الدخول بهذا الحساب.'
+          : 'سڕینەوەی هەژمارەکەت تەواو بوو. چیتر ناتوانیت بەو هەژمارە بچیتە ژوورەوە.'
+      );
+    } catch (err) {
+      const errorCode =
+        err !== null && typeof err === 'object' && 'code' in err ? String(err.code) : 'unknown';
+      console.warn('Could not confirm account deletion:', errorCode);
+
+      const isEn = language === 'english';
+      const isAr = language === 'arabic';
+      Alert.alert(
+        isEn ? 'Deletion Not Confirmed' : isAr ? 'تعذر تأكيد الحذف' : 'نەتوانرا سڕینەوە پشتڕاست بکرێتەوە',
+        isEn
+          ? 'We could not confirm that deletion finished. Check your connection and try again. If this continues, contact muminrtx@gmail.com to confirm your account status.'
+          : isAr
+          ? 'تعذر تأكيد اكتمال الحذف. تحقق من اتصالك وحاول مرة أخرى. إذا استمرت المشكلة، تواصل مع muminrtx@gmail.com للتأكد من حالة حسابك.'
+          : 'نەتوانرا تەواوبوونی سڕینەوە پشتڕاست بکرێتەوە. پەیوەندی ئینتەرنێتەکەت بپشکنە و دووبارە هەوڵ بدەوە. ئەگەر کێشەکە بەردەوام بوو، بۆ دڵنیابوونەوە لە دۆخی هەژمارەکەت پەیوەندی بکە بە muminrtx@gmail.com.'
+      );
+    } finally {
+      setIsDeleting(false);
     }
-
-    // 3. Clear session and sign out
-    await supabase.auth.signOut();
-    setIsDeleting(false);
-    setShowDeleteModal(false);
-    setIsLoggedIn(false);
-    setCurrentUserEmail(null);
-    onClose();
-
-    const isEn = language === 'english';
-    const isAr = language === 'arabic';
-    Alert.alert(
-      isEn ? 'Account Deleted' : isAr ? 'تم حذف الحساب' : 'هەژمار سڕایەوە',
-      isEn
-        ? 'Your account has been permanently deleted. You cannot sign in with this email again.'
-        : isAr
-        ? 'تم حذف حسابك نهائياً. لا يمكنك تسجيل الدخول بهذا البريد الإلكتروني مرة أخرى.'
-        : 'هەژمارەکەت بە یەکجاری سڕایەوە. چیتر ناتوانیت بەم ئیمەیڵە بچیتە ژوورەوە.'
-    );
   };
 
   const handleModalRequestClose = () => {

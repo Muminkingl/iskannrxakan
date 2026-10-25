@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { OWNER_EMAIL, addDbAdmin, fetchDbAdmins, removeDbAdmin } from '@/lib/auth-roles';
+import { addDbAdmin, fetchDbAdmins, removeDbAdmin } from '@/lib/auth-roles';
 import { supabase } from '@/lib/supabase';
 
 interface OwnerPanelModalProps {
   visible: boolean;
+  ownerEmail: string;
   onClose: () => void;
 }
 
-export function OwnerPanelModal({ visible, onClose }: OwnerPanelModalProps) {
+export function OwnerPanelModal({ visible, ownerEmail, onClose }: OwnerPanelModalProps) {
   const [adminEmails, setAdminEmails] = useState<string[]>([]);
   const [newEmail, setNewEmail] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -30,12 +31,12 @@ export function OwnerPanelModal({ visible, onClose }: OwnerPanelModalProps) {
         supabase.removeChannel(channel);
       };
     }
-  }, [visible]);
+  }, [visible, ownerEmail]);
 
   const loadAdmins = async () => {
     const emails = await fetchDbAdmins();
     // Filter out owner email from admin list view
-    setAdminEmails(emails.filter((e) => e.toLowerCase() !== OWNER_EMAIL.toLowerCase()));
+    setAdminEmails(emails.filter((e) => e.toLowerCase() !== ownerEmail.trim().toLowerCase()));
   };
 
   const handleAdd = async () => {
@@ -44,7 +45,7 @@ export function OwnerPanelModal({ visible, onClose }: OwnerPanelModalProps) {
       setErrorMessage('تکایە ئیمەیڵێکی دروست بنووسە');
       return;
     }
-    if (trimmed === OWNER_EMAIL.toLowerCase()) {
+    if (trimmed === ownerEmail.trim().toLowerCase()) {
       setErrorMessage('ئەم ئیمەیڵە خاوەنی بەرنامەکەیە!');
       return;
     }
@@ -133,7 +134,7 @@ export function OwnerPanelModal({ visible, onClose }: OwnerPanelModalProps) {
                 </View>
 
                 <View style={styles.adminEmailMeta}>
-                  <Text style={styles.adminEmailText}>{OWNER_EMAIL}</Text>
+                  <Text style={styles.adminEmailText}>{ownerEmail}</Text>
                   <Text style={styles.adminRoleLabel}>بەڕێوەبەری سەرەکی</Text>
                 </View>
 

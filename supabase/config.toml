@@ -1,0 +1,9 @@
+project_id = "iskannrxakan"
+
+# Each function authenticates its caller inside the handler. This also supports
+# projects using asymmetric Supabase JWT signing keys.
+[functions.sync-premium-purchase]
+verify_jwt = false
+
+[functions.revenuecat-webhook]
+verify_jwt = false

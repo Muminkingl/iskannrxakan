@@ -2,13 +2,16 @@
 
 This Worker is the public, read-only delivery layer for customer rates. It
 reads only the `rates` table from Supabase and caches one compact JSON snapshot
-for 30 seconds at Cloudflare's edge. The mobile app refreshes that snapshot on
+for 30 seconds at Cloudflare's edge. Workers Cache serves edge hits before the
+Worker runs, and the Worker also keeps a short in-code fallback for a missed
+edge location. The mobile app refreshes that snapshot on
 launch, when returning to the foreground, and every five minutes while active.
 It never opens a Supabase Realtime channel for customer rates.
 
 The five-minute client interval is deliberate: Cloudflare Workers Free has a
-100,000-request daily limit. The CDN cache protects Supabase, while the local
-snapshot cache keeps the app usable during a temporary Worker outage.
+100,000-request daily limit. The edge cache protects both Supabase and Worker
+CPU, while the local snapshot cache keeps the app usable during a temporary
+Worker outage.
 
 ## Deploy once
 

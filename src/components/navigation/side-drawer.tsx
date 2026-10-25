@@ -38,7 +38,7 @@ export function SideDrawer({
   onSignOut,
 }: SideDrawerProps) {
   const { t, language } = useLanguage();
-  const { isVip, daysRemaining, openPlanModal } = usePlan();
+  const { isPremium, premiumExpiresAt, daysRemaining, openPlanModal } = usePlan();
   const isEnglish = language === 'english';
   const isArabic = language === 'arabic';
   const [modalMounted, setModalMounted] = useState(false);
@@ -141,39 +141,39 @@ export function SideDrawer({
               onPress={() => handleCloseWithAnimation(() => openPlanModal())}
               style={({ pressed }) => [
                 styles.drawerBanner,
-                isVip && { backgroundColor: '#0284C7', borderColor: '#38BDF8' },
+                isPremium && { backgroundColor: '#0284C7', borderColor: '#38BDF8' },
                 pressed && styles.pressed,
               ]}
             >
-              <View style={[styles.starBadgeCircle, isVip && { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
-                <Ionicons name="diamond" size={20} color="#FFFFFF" />
+              <View style={[styles.starBadgeCircle, isPremium && { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+                <Ionicons name="sparkles" size={20} color="#FFFFFF" />
               </View>
               <View style={styles.drawerBannerCopy}>
                 <Text style={styles.drawerBannerTitle}>
-                  {isVip
+                  {isPremium
                     ? isEnglish
-                      ? 'VIP Member'
+                      ? 'Premium Member'
                       : isArabic
-                      ? 'حساب (VIP)'
-                      : 'ئەکاونتی (VIP)'
+                      ? 'حساب (Premium)'
+                      : 'ئەکاونتی (Premium)'
                     : isEnglish
-                    ? 'General Member'
-                    : 'ئەکاونتی ئاسایی'}
+                    ? 'Free Account'
+                    : isArabic ? 'حساب مجاني' : 'هەژماری ئاسایی'}
                 </Text>
                 <Text style={styles.drawerBannerSub}>
-                  {isVip
-                    ? daysRemaining > 300
+                  {isPremium
+                    ? premiumExpiresAt === null
                       ? isEnglish
-                        ? 'Perpetual Access Unlocked'
+                        ? 'Premium access included'
                         : 'دەستگەیشتنی بەردەوام'
                       : isEnglish
                       ? `${daysRemaining} Days Remaining`
                       : `${daysRemaining} ڕۆژ ماوە`
                     : isEnglish
-                    ? 'Tap to activate VIP access'
+                    ? 'View Premium access options'
                     : isArabic
-                    ? 'اضغط لتفعيل مزايا VIP'
-                    : 'کلیک بکە بۆ چالاكکردنی VIP'}
+                    ? 'عرض خيارات الوصول إلى Premium'
+                    : 'هەڵبژاردەکانی دەستگەیشتنی Premium ببینە'}
                 </Text>
               </View>
             </Pressable>
@@ -209,9 +209,9 @@ export function SideDrawer({
                 style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
               >
                 <Text style={[styles.menuText, { color: '#0EA5E9' }]}>
-                  {isEnglish ? 'VIP Access' : isArabic ? 'ميزات VIP' : 'تایبەتمەندی VIP'}
+                  {isEnglish ? 'Premium Access' : isArabic ? 'ميزات Premium' : 'تایبەتمەندی Premium'}
                 </Text>
-                <Ionicons name="diamond-outline" size={20} color="#0EA5E9" />
+                <Ionicons name="sparkles-outline" size={20} color="#0EA5E9" />
               </Pressable>
 
               <Pressable

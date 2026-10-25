@@ -1,303 +1,232 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
-import { getUserRole } from '@/lib/auth-roles';
+import type { CustomerInfo, PurchasesPackage } from 'react-native-purchases';
+
+import { PREMIUM_ENTITLEMENT_ID } from '@/constants/config';
+import { fetchAccountState, type AccountState } from '@/lib/auth-roles';
 import {
-  N8N_WEBHOOK_URL,
-  N8N_AUTH_HEADER_NAME,
-  N8N_AUTH_HEADER_VALUE,
-} from '@/constants/config';
+  buyApplePremium, canUseApplePurchases, disconnectApplePurchases, hasApplePremium,
+  loadApplePurchases, logApplePurchaseError, observeApplePurchases, restoreApplePurchases, syncApplePremium,
+} from '@/lib/purchases';
+import { supabase } from '@/lib/supabase';
 import { generateUserCode } from '@/utils/user-code';
 
-type PaymentSubmitResult = 'submitted' | 'already_pending' | 'error';
+type PurchaseResult = 'activated' | 'cancelled' | 'pending_confirmation' | 'pending_approval';
+type RestoreResult = 'restored' | 'nothing_to_restore' | 'pending_confirmation';
+type BillingStatus = 'unavailable' | 'loading' | 'ready' | 'error';
 
 interface PlanContextType {
-  isVip: boolean;
-  vipExpiresAt: string | null;
+  isPremium: boolean;
+  premiumExpiresAt: string | null;
   daysRemaining: number;
   isPlanModalOpen: boolean;
-  pendingPaymentExists: boolean;
   userCode: string;
+  billingStatus: BillingStatus;
+  purchasePackage: PurchasesPackage | null;
+  isBillingBusy: boolean;
+  hasStorePremium: boolean;
+  needsPurchaseConfirmation: boolean;
   openPlanModal: () => void;
   closePlanModal: () => void;
-  toggleVip: () => void;
-  activate30DaysVip: (targetEmail?: string) => Promise<boolean>;
-  submitPaymentRequest: (transactionRef?: string) => Promise<PaymentSubmitResult>;
+  purchasePremium: () => Promise<PurchaseResult>;
+  restorePurchases: () => Promise<RestoreResult>;
+  activate30DaysPremium: (targetEmail: string) => Promise<boolean>;
   refreshSubscriptionStatus: () => Promise<void>;
 }
 
 const PlanContext = createContext<PlanContextType | undefined>(undefined);
 
-export function PlanProvider({
-  children,
-  session,
-  dbAdmins = [],
-}: {
+export function PlanProvider({ children, session, userRole = 'user', initialState = null }: {
   children: React.ReactNode;
   session: Session | null;
-  dbAdmins?: string[];
+  userRole?: AccountState['role'];
+  initialState?: AccountState | null;
 }) {
-  const [isVip, setIsVip] = useState(false);
-  const [vipExpiresAt, setVipExpiresAt] = useState<string | null>(null);
-  const [daysRemaining, setDaysRemaining] = useState(0);
+  const [accountState, setAccountState] = useState(initialState);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
-  const [hasAutoOpened, setHasAutoOpened] = useState(false);
-  const [pendingPaymentExists, setPendingPaymentExists] = useState(false);
-  const [profileUserCode, setProfileUserCode] = useState<string | null>(null);
+  const [billingStatus, setBillingStatus] = useState<BillingStatus>('unavailable');
+  const [purchasePackage, setPurchasePackage] = useState<PurchasesPackage | null>(null);
+  const [storeInfo, setStoreInfo] = useState<CustomerInfo | null>(null);
+  const [isBillingBusy, setIsBillingBusy] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const billingBusy = useRef(false);
+  const mounted = useRef(true);
+  const accountRefreshId = useRef(0);
+  const userId = session?.user.id;
+  const userEmail = session?.user.email;
+  const effectiveRole = accountState?.role ?? userRole;
+  const isAdmin = effectiveRole === 'owner' || effectiveRole === 'admin';
 
-  const userEmail = session?.user?.email;
-  const userId = session?.user?.id;
-  const userCode = profileUserCode || generateUserCode(userEmail || userId);
-  const userRole = getUserRole(userEmail, dbAdmins);
-  const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
-
-  // The database profile code is the canonical code shown to support and
-  // stored on payment_requests. Keep the generated value only as an offline
-  // fallback while the profile loads.
   useEffect(() => {
-    let active = true;
-    setProfileUserCode(null);
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
-    if (!userId) return () => { active = false; };
-
-    void supabase
-      .from('profiles')
-      .select('activation_code')
-      .eq('id', userId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (active && data?.activation_code) setProfileUserCode(data.activation_code);
-      });
-
-    return () => {
-      active = false;
-    };
+  const refreshAccount = useCallback(async () => {
+    if (!userId) return null;
+    const refreshId = ++accountRefreshId.current;
+    const state = await fetchAccountState().catch(() => null);
+    if (state && mounted.current && refreshId === accountRefreshId.current) {
+      setAccountState(state);
+      setNow(Date.now());
+    }
+    return state;
   }, [userId]);
 
-  // ─── Single source of truth: user_subscriptions only ──────────────────────
-  const checkSubscriptionStatus = async () => {
-    if (!userEmail) return;
+  const syncStore = useCallback(async () => {
+    await syncApplePremium();
+    const state = await refreshAccount();
+    if (!state) throw new Error('Could not load confirmed Premium access');
+    return state;
+  }, [refreshAccount]);
 
+  const refreshBilling = useCallback(async () => {
+    if (!userId || !canUseApplePurchases()) return;
+    setBillingStatus('loading');
     try {
-      const { data, error } = await supabase
-        .from('user_subscriptions')
-        .select('vip_expires_at, is_vip')
-        .eq('email', userEmail.trim().toLowerCase())
-        .maybeSingle();
-
-      if (!error && data?.vip_expires_at) {
-        const expiresDate = new Date(data.vip_expires_at);
-        const now = new Date();
-        const diffDays = Math.ceil((expiresDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (diffDays > 0) {
-          setIsVip(true);
-          setVipExpiresAt(data.vip_expires_at);
-          setDaysRemaining(diffDays);
-          return;
-        }
+      const { customerInfo, purchasePackage: nextPackage } = await loadApplePurchases(userId);
+      if (!mounted.current) return;
+      if (customerInfo) setStoreInfo(customerInfo);
+      setPurchasePackage(nextPackage);
+      setBillingStatus(nextPackage ? 'ready' : 'error');
+      if (customerInfo?.entitlements.all[PREMIUM_ENTITLEMENT_ID]) {
+        // Failure leaves the existing server-confirmed access intact. A
+        // completed purchase can be retried without charging the customer again.
+        await syncStore().catch(() => undefined);
       }
-
-      // Check for pending payment requests
-      await checkPendingPayment();
-
-      // Default: Free Tier
-      setIsVip(false);
-      setVipExpiresAt(null);
-      setDaysRemaining(0);
-    } catch (err) {
-      console.log('Error checking subscription status:', err);
-      setIsVip(false);
-    }
-  };
-
-  // ─── On session start ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!session || !userEmail) {
-      setIsVip(false);
-      return;
-    }
-
-    if (isOwnerOrAdmin) {
-      setIsVip(true);
-      setVipExpiresAt(null);
-      setDaysRemaining(999);
-      return;
-    }
-
-    checkSubscriptionStatus();
-  }, [session, userEmail, isOwnerOrAdmin]);
-
-  // ─── Re-check on app foreground (fixes stale cache bug) ───────────────────
-  const appState = useRef(AppState.currentState);
-  useEffect(() => {
-    if (!userEmail || isOwnerOrAdmin) return;
-
-    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
-      if (appState.current.match(/inactive|background/) && nextState === 'active') {
-        checkSubscriptionStatus();
+    } catch (error) {
+      logApplePurchaseError('initialization', error);
+      if (mounted.current) {
+        setPurchasePackage(null);
+        setBillingStatus('error');
       }
-      appState.current = nextState;
+    }
+  }, [userId, syncStore]);
+
+  useEffect(() => {
+    void refreshAccount();
+    void refreshBilling();
+    if (!userId || !canUseApplePurchases()) return;
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    void observeApplePurchases(userId, (info) => {
+      if (cancelled) return;
+      setStoreInfo(info);
+      if (info.entitlements.all[PREMIUM_ENTITLEMENT_ID]) {
+        void syncStore().catch(() => undefined);
+      }
+    }).then((removeListener) => {
+      if (cancelled) removeListener();
+      else unsubscribe = removeListener;
+    }).catch(() => undefined);
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+      void disconnectApplePurchases(userId).catch(() => undefined);
+    };
+  }, [userId, refreshAccount, refreshBilling, syncStore]);
+
+  useEffect(() => {
+    const foreground = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void refreshAccount();
+        void refreshBilling();
+      }
     });
+    const refreshTimer = setInterval(() => { void refreshAccount(); }, 3 * 60 * 1000);
+    const expiryTimer = setInterval(() => setNow(Date.now()), 30 * 1000);
+    return () => {
+      foreground.remove();
+      clearInterval(refreshTimer);
+      clearInterval(expiryTimer);
+    };
+  }, [refreshAccount, refreshBilling]);
 
-    return () => subscription.remove();
-  }, [userEmail, isOwnerOrAdmin]);
-
-  // ─── Periodic re-check every 3 minutes (catches mid-session admin approval) ─
-  useEffect(() => {
-    if (!userEmail || isOwnerOrAdmin) return;
-
-    const intervalId = setInterval(() => {
-      checkSubscriptionStatus();
-    }, 3 * 60 * 1000); // 3 minutes
-
-    return () => clearInterval(intervalId);
-  }, [userEmail, isOwnerOrAdmin]);
-
-  const checkPendingPayment = async () => {
-    if (!userId) {
-      setPendingPaymentExists(false);
-      return;
-    }
+  const purchasePremium = async (): Promise<PurchaseResult> => {
+    if (!userId || !purchasePackage || billingBusy.current) throw new Error('Purchase unavailable');
+    billingBusy.current = true;
+    setIsBillingBusy(true);
     try {
-      const { data, error } = await supabase
-        .from('payment_requests')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('status', 'pending')
-        .limit(1)
-        .maybeSingle();
-
-      if (error) throw error;
-      setPendingPaymentExists(!!data);
-    } catch {
-      setPendingPaymentExists(false);
-    }
-  };
-
-  const submitPaymentRequest = async (transactionRef?: string): Promise<PaymentSubmitResult> => {
-    if (!userId) return 'error';
-
-    const cleanEmail = userEmail?.trim().toLowerCase() || null;
-
-    try {
-      // Submit through one SECURITY DEFINER RPC. This avoids a client-side
-      // SELECT/INSERT race and keeps RLS, the profile code, and the pending
-      // unique constraint in one database transaction.
-      const { data, error: submitError } = await supabase.rpc('submit_payment_request', {
-        request_transaction_ref: transactionRef?.trim() || userCode,
-      });
-
-      if (submitError) {
-        console.warn('Could not save activation request:', {
-          code: submitError.code,
-          details: submitError.details,
-          hint: submitError.hint,
-        });
-        return 'error';
-      }
-
-      const requestRow = Array.isArray(data) ? data[0] : data;
-      if (!requestRow?.id) return 'error';
-
-      setPendingPaymentExists(true);
-
-      // Fire n8n webhook notification
+      // Confirm that the verification backend is ready before charging. It can
+      // also discover an existing purchase that has not reached this device yet.
+      const existing = await syncStore();
+      if (existing.storePremiumActive) return 'activated';
+      const info = await buyApplePremium(userId, purchasePackage);
+      if (mounted.current) setStoreInfo(info);
+      if (!hasApplePremium(info)) return 'pending_approval';
       try {
-        await fetch(N8N_WEBHOOK_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            [N8N_AUTH_HEADER_NAME]: N8N_AUTH_HEADER_VALUE,
-          },
-          body: JSON.stringify({
-            record: {
-              id: requestRow.id,
-              code: requestRow.code || userCode,
-              email: requestRow.email || cleanEmail,
-              status: requestRow.status || 'pending',
-            },
-          }),
-        });
-      } catch (webhookErr) {
-        console.log('n8n webhook error (non-blocking):', webhookErr);
+        const state = await syncStore();
+        return state.storePremiumActive ? 'activated' : 'pending_confirmation';
+      } catch {
+        return 'pending_confirmation';
       }
-
-      return 'submitted';
-    } catch (err) {
-      console.log('Error in submitPaymentRequest:', err);
-      return 'error';
+    } catch (error) {
+      const purchaseError = error as { code?: string; userCancelled?: boolean };
+      if (purchaseError.userCancelled || purchaseError.code === '1') return 'cancelled';
+      if (purchaseError.code === '20') return 'pending_approval';
+      throw error;
+    } finally {
+      billingBusy.current = false;
+      if (mounted.current) setIsBillingBusy(false);
     }
   };
 
-  const activate30DaysVip = async (targetEmail?: string): Promise<boolean> => {
-    const emailToActivate = targetEmail || userEmail;
-    if (!emailToActivate) return false;
-
-    const expiresDate = new Date();
-    expiresDate.setDate(expiresDate.getDate() + 30);
-    const expiresIso = expiresDate.toISOString();
-
+  const restorePurchases = async (): Promise<RestoreResult> => {
+    if (!userId || billingBusy.current) throw new Error('Restore unavailable');
+    billingBusy.current = true;
+    setIsBillingBusy(true);
     try {
-      // Single source of truth: user_subscriptions only
-      const { error } = await supabase.from('user_subscriptions').upsert(
-        {
-          email: emailToActivate.trim().toLowerCase(),
-          is_vip: true,
-          vip_expires_at: expiresIso,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'email' }
-      );
-
-      if (error) {
-        console.log('Error upserting user_subscriptions:', error.message);
-        return false;
+      const info = await restoreApplePurchases(userId);
+      if (mounted.current) setStoreInfo(info);
+      try {
+        const state = await syncStore();
+        if (state.storePremiumActive) return 'restored';
+        return hasApplePremium(info) ? 'pending_confirmation' : 'nothing_to_restore';
+      } catch {
+        if (hasApplePremium(info)) return 'pending_confirmation';
+        throw new Error('Could not confirm restored purchases');
       }
-
-      // If activating for the currently logged-in user, update state instantly
-      if (!targetEmail || targetEmail.trim().toLowerCase() === userEmail?.trim().toLowerCase()) {
-        setIsVip(true);
-        setVipExpiresAt(expiresIso);
-        setDaysRemaining(30);
-        setPendingPaymentExists(false);
-      }
-
-      return true;
-    } catch (err) {
-      console.log('Error in activate30DaysVip:', err);
-      return false;
+    } finally {
+      billingBusy.current = false;
+      if (mounted.current) setIsBillingBusy(false);
     }
   };
 
-  const openPlanModal = () => {
-    if (userId) void checkPendingPayment();
-    setIsPlanModalOpen(true);
+  const activate30DaysPremium = async (targetEmail: string): Promise<boolean> => {
+    if (!isAdmin || !targetEmail.trim()) return false;
+    const email = targetEmail.trim().toLowerCase();
+    const { data: current, error: readError } = await supabase.from('user_subscriptions')
+      .select('vip_expires_at').eq('email', email).maybeSingle();
+    if (readError) return false;
+    const existingExpiry = current?.vip_expires_at ? Date.parse(current.vip_expires_at) : 0;
+    const expiry = new Date(Math.max(Date.now(), existingExpiry || 0) + 30 * 86400000).toISOString();
+    const { error } = await supabase.from('user_subscriptions').upsert({
+      email, is_vip: true, vip_expires_at: expiry, updated_at: new Date().toISOString(),
+    }, { onConflict: 'email' });
+    return !error;
   };
-  const closePlanModal = () => setIsPlanModalOpen(false);
-  const toggleVip = () => setIsVip((prev) => !prev);
-  const refreshSubscriptionStatus = async () => {
-    if (!isOwnerOrAdmin) await checkSubscriptionStatus();
-  };
+
+  const premiumExpiresAt = isAdmin ? null : accountState?.vipExpiresAt ?? null;
+  const isPremium = !!session && !accountState?.isDeleted && (isAdmin || (
+    accountState?.isVip === true &&
+    (premiumExpiresAt === null || Date.parse(premiumExpiresAt) > now)
+  ));
+  const daysRemaining = isAdmin || (isPremium && !premiumExpiresAt) ? 999 :
+    isPremium && premiumExpiresAt ? Math.max(0, Math.ceil((Date.parse(premiumExpiresAt) - now) / 86400000)) : 0;
+  const hasStorePremium = !!(storeInfo && hasApplePremium(storeInfo)) || accountState?.storePremiumActive === true;
 
   return (
-    <PlanContext.Provider
-      value={{
-        isVip,
-        vipExpiresAt,
-        daysRemaining,
-        isPlanModalOpen,
-        pendingPaymentExists,
-        userCode,
-        openPlanModal,
-        closePlanModal,
-        toggleVip,
-        activate30DaysVip,
-        submitPaymentRequest,
-        refreshSubscriptionStatus,
-      }}
-    >
+    <PlanContext.Provider value={{
+      isPremium, premiumExpiresAt, daysRemaining, isPlanModalOpen,
+      userCode: accountState?.activationCode || generateUserCode(userEmail || userId),
+      billingStatus, purchasePackage, isBillingBusy, hasStorePremium,
+      needsPurchaseConfirmation: hasStorePremium && !accountState?.storePremiumActive,
+      openPlanModal: () => setIsPlanModalOpen(true),
+      closePlanModal: () => setIsPlanModalOpen(false),
+      purchasePremium, restorePurchases, activate30DaysPremium,
+      refreshSubscriptionStatus: async () => { await refreshBilling(); await refreshAccount(); },
+    }}>
       {children}
     </PlanContext.Provider>
   );
@@ -305,8 +234,6 @@ export function PlanProvider({
 
 export function usePlan() {
   const context = useContext(PlanContext);
-  if (!context) {
-    throw new Error('usePlan must be used within a PlanProvider');
-  }
+  if (!context) throw new Error('usePlan must be used within a PlanProvider');
   return context;
 }

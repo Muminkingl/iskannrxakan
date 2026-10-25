@@ -1,0 +1,14 @@
+{
+  "name": "iskan-telegram-system",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "22.x" },
+  "scripts": {
+    "build": "node scripts/check-build.mjs",
+    "telegram:configure": "node --env-file=.env scripts/configure-telegram.mjs",
+    "telegram:info": "node --env-file=.env scripts/configure-telegram.mjs --info",
+    "telegram:prepare": "node --env-file=.env scripts/configure-telegram.mjs --prepare",
+    "test": "node --test test/*.test.mjs"
+  }
+}

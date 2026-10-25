@@ -36,7 +36,7 @@ export const INITIAL_CURRENCIES: CurrencyOption[] = [
 export function CurrencyCalculator() {
   const { colors, isDark } = useTheme();
   const { t, language } = useLanguage();
-  const { isVip, openPlanModal } = usePlan();
+  const { isPremium, openPlanModal } = usePlan();
   const { rates } = useRates();
   const isEnglish = language === 'english';
   const [currencies, setCurrencies] = useState<CurrencyOption[]>(INITIAL_CURRENCIES);
@@ -72,7 +72,7 @@ export function CurrencyCalculator() {
 
 
   const handleKeyPress = (val: string) => {
-    if (!isVip) {
+    if (!isPremium) {
       openPlanModal();
       return;
     }
@@ -104,7 +104,7 @@ export function CurrencyCalculator() {
   };
 
   const handleSwap = () => {
-    if (!isVip) {
+    if (!isPremium) {
       openPlanModal();
       return;
     }
@@ -132,7 +132,7 @@ export function CurrencyCalculator() {
   const rawResult = (numericInput * fromCurrency.rateInIqd) / toCurrency.rateInIqd;
 
   // Format result
-  const formattedResult = !isVip
+  const formattedResult = !isPremium
     ? '••••••••'
     : toCurrency.code === 'IQD'
     ? Math.round(rawResult).toLocaleString()
@@ -140,7 +140,7 @@ export function CurrencyCalculator() {
 
   // Rate ratio text e.g. "1 USD = 1,503 IQD"
   const ratioValue = fromCurrency.rateInIqd / toCurrency.rateInIqd;
-  const formattedRatio = !isVip
+  const formattedRatio = !isPremium
     ? '••••'
     : toCurrency.code === 'IQD'
     ? Math.round(ratioValue).toLocaleString()
@@ -150,7 +150,7 @@ export function CurrencyCalculator() {
     <View style={styles.container}>
       {/* Sleek Live Exchange Header Badge */}
       <Pressable
-        onPress={!isVip ? openPlanModal : undefined}
+        onPress={!isPremium ? openPlanModal : undefined}
         style={[styles.rateHeaderCard, { backgroundColor: colors.cardBg, borderColor: colors.borderColor }, isEnglish && styles.rowLtr]}
       >
         <View style={[styles.liveIndicator, isEnglish && styles.rowLtr]}>

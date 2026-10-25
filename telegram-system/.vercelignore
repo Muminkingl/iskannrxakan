@@ -1,0 +1,6 @@
+.env
+.env.*
+README.md
+test/
+scripts/configure-telegram.mjs
+node_modules/

@@ -94,7 +94,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 export function MarketChartScreen() {
   const { colors, isDark } = useTheme();
   const { t, language } = useLanguage();
-  const { isVip, openPlanModal } = usePlan();
+  const { isPremium, openPlanModal } = usePlan();
   const { rates } = useRates();
   const isEnglish = language === 'english';
 
@@ -332,7 +332,7 @@ export function MarketChartScreen() {
       <View style={styles.chartCard}>
         {/* Price Row */}
         <View style={styles.priceRow}>
-          {isVip && change !== '—' && (
+          {isPremium && change !== '—' && (
             <View style={[styles.changeBadge, { backgroundColor: isPositive ? '#DCFCE7' : '#FEE2E2' }]}>
               <Ionicons
                 name={isPositive ? 'trending-up' : 'trending-down'}
@@ -351,7 +351,7 @@ export function MarketChartScreen() {
           )}
 
           <Pressable
-            onPress={!isVip ? openPlanModal : undefined}
+            onPress={!isPremium ? openPlanModal : undefined}
             style={[styles.priceMetaRight, isEnglish && styles.alignLeft]}
           >
             <Text
@@ -360,7 +360,7 @@ export function MarketChartScreen() {
               minimumFontScale={0.75}
               style={[styles.currentPriceText, isEnglish && styles.textLeft]}
             >
-              {isVip ? currentRate : '••••••••'}
+              {isPremium ? currentRate : '••••••••'}
             </Text>
             <Text
               numberOfLines={1}
@@ -374,12 +374,12 @@ export function MarketChartScreen() {
 
         {/* Real SVG Chart */}
         <View style={styles.svgContainer} onLayout={handleChartLayout}>
-          {!isVip ? (
+          {!isPremium ? (
             <Pressable onPress={openPlanModal} style={styles.vipLockedChartOverlay}>
               <View style={styles.vipLockedChartBox}>
                 <Ionicons name="diamond" size={28} color="#38BDF8" style={{ marginBottom: 6 }} />
                 <Text style={styles.vipLockedTitle}>
-                  {isEnglish ? 'VIP Access Required' : language === 'arabic' ? 'ميزات VIP مطلوبة' : 'تایبەتمەندی VIP پێویستە'}
+                  {isEnglish ? 'Premium Access Required' : language === 'arabic' ? 'ميزات Premium مطلوبة' : 'تایبەتمەندی Premium پێویستە'}
                 </Text>
                 <Text style={styles.vipLockedSub}>
                   {isEnglish ? 'Tap to view live market trends & charts' : 'کلیک بکە بۆ بەدەستهێنانی شیکاری بۆرسە'}

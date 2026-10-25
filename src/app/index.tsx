@@ -1,6 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
 import * as SplashScreen from 'expo-splash-screen';
-import * as SecureStore from 'expo-secure-store';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StatusBar, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -9,18 +8,17 @@ import { useLocalSearchParams } from 'expo-router';
 import { AuthScreen } from '@/components/auth/auth-screen';
 import { HomeScreen } from '@/components/home-screen';
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow';
+import { fetchAccountState, type AccountState } from '@/lib/auth-roles';
+import { completeOnboarding, hasCompletedOnboarding } from '@/lib/onboarding';
 import { supabase } from '@/lib/supabase';
 import { IskanLogo } from '@/components/common/iskan-logo';
 
-// Persisted flag — once set, onboarding never shows again (even after sign out)
-const ONBOARDING_DONE_KEY = 'onboarding_done';
-
-type Step = 'loading' | 'onboarding' | 'auth';
-
 export default function EntryScreen() {
   const params = useLocalSearchParams<{ deleted_email?: string }>();
-  const [step, setStep] = useState<Step>('loading');
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
+  const [accountState, setAccountState] = useState<AccountState | null>(null);
   const [deletedAccountEmail, setDeletedAccountEmail] = useState<string | null>(
     params.deleted_email || null
   );
@@ -28,41 +26,67 @@ export default function EntryScreen() {
   useEffect(() => {
     if (params.deleted_email) {
       setDeletedAccountEmail(params.deleted_email);
-      setStep('auth');
     }
   }, [params.deleted_email]);
 
   useEffect(() => {
-    void SplashScreen.hideAsync();
+    let active = true;
+    void SplashScreen.hideAsync().catch(() => undefined);
+    void hasCompletedOnboarding().then((completed) => {
+      if (active) setOnboardingCompleted(completed);
+    }).catch(() => {
+      // Blocked browser storage or a device storage error must not prevent entry.
+      if (active) setOnboardingCompleted(false);
+    });
+    return () => { active = false; };
+  }, []);
 
-    const timer = setTimeout(async () => {
-      // If still no session after loading, decide: onboarding or auth
-      // Check if user has already seen onboarding (skipped or completed)
-      const done = await SecureStore.getItemAsync(ONBOARDING_DONE_KEY);
-      setStep((prev) => {
-        if (prev !== 'loading') return prev; // session already set
-        return done ? 'auth' : 'onboarding'; // skip if seen before
-      });
-    }, 800);
+  useEffect(() => {
+    let active = true;
+    let checkedUserId: string | null = null;
+    let latestSession: Session | null = null;
+    let checkId = 0;
+    let authEventId = 0;
+    const pendingEvents = new Set<ReturnType<typeof setTimeout>>();
 
     // Verify every session before rendering HomeScreen. Auth providers emit
     // SIGNED_IN as soon as a token is stored, so skipping this check for a
     // fresh sign-in briefly showed HomeScreen for deleted accounts.
     const checkAndSetSession = async (incomingSession: Session | null) => {
+      if (!active) return;
+      latestSession = incomingSession;
       if (!incomingSession) {
+        ++checkId;
+        checkedUserId = null;
         setSession(null);
-        setStep('auth');
+        setAccountState(null);
+        setIsCheckingSession(false);
         return;
       }
 
-      // Keep the protected screen unmounted while the account check runs.
-      setStep('loading');
+      // getSession() and SIGNED_IN can arrive together. Avoid running the
+      // account RPC twice for the same user during that handoff.
+      if (checkedUserId === incomingSession.user.id) {
+        // Refresh the token only for an account whose gate already finished.
+        setSession((current) => current?.user.id === incomingSession.user.id ? incomingSession : current);
+        return;
+      }
+      checkedUserId = incomingSession.user.id;
+      const requestId = ++checkId;
+      const isCurrent = () => active && requestId === checkId;
 
-      // If user has a valid session, onboarding is definitely completed
-      void SecureStore.setItemAsync(ONBOARDING_DONE_KEY, '1');
+      // Keep the protected screen unmounted while the account check runs.
+      setIsCheckingSession(true);
+      setSession(null);
+      setAccountState(null);
 
       const email = incomingSession.user?.email?.toLowerCase().trim();
-      if (email) {
+      const loadedAccountState = await fetchAccountState().catch(() => null);
+      if (!isCurrent()) return;
+
+      // Keep a compatibility fallback for a partially deployed backend. The
+      // normal path is the single account-state RPC above.
+      if (!loadedAccountState && email) {
         try {
           const { data: isDeleted } = await supabase
             .from('deleted_accounts')
@@ -70,11 +94,15 @@ export default function EntryScreen() {
             .eq('email', email)
             .maybeSingle();
 
+          if (!isCurrent()) return;
           if (isDeleted) {
             setDeletedAccountEmail(email);
             await supabase.auth.signOut({ scope: 'local' });
+            if (!isCurrent()) return;
             setSession(null);
-            setStep('auth');
+            setAccountState(null);
+            checkedUserId = null;
+            setIsCheckingSession(false);
             return;
           }
         } catch (e) {
@@ -82,48 +110,68 @@ export default function EntryScreen() {
         }
       }
 
+      if (!isCurrent()) return;
+      if (loadedAccountState?.isDeleted && email) {
+        setDeletedAccountEmail(email);
+        await supabase.auth.signOut({ scope: 'local' });
+        if (!isCurrent()) return;
+        setSession(null);
+        setAccountState(null);
+        checkedUserId = null;
+        setIsCheckingSession(false);
+        return;
+      }
+
       setDeletedAccountEmail(null);
-      setSession(incomingSession);
-      setStep('auth');
+      setAccountState(loadedAccountState);
+      setSession(latestSession);
+      setIsCheckingSession(false);
     };
 
     // Initial load — run the same deleted-account gate as a fresh sign-in.
-    supabase.auth.getSession().then(({ data }) => {
-      void checkAndSetSession(data.session);
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (active && authEventId === 0) void checkAndSetSession(error ? null : data.session);
+    }).catch(() => {
+      if (active && authEventId === 0) void checkAndSetSession(null);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
-      if (event === 'SIGNED_IN') {
-        void checkAndSetSession(nextSession);
-      } else if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setStep('auth');
-      } else if (event === 'TOKEN_REFRESHED' && nextSession) {
-        setSession(nextSession);
-        setStep('auth');
-      }
+      if (!['INITIAL_SESSION', 'SIGNED_IN', 'SIGNED_OUT', 'TOKEN_REFRESHED'].includes(event)) return;
+      const eventId = ++authEventId;
+      // Supabase auth listeners run under its session lock. Start database work
+      // after that callback returns so an account check cannot deadlock startup.
+      const timer = setTimeout(() => {
+        pendingEvents.delete(timer);
+        if (active && eventId === authEventId) void checkAndSetSession(nextSession);
+      }, 0);
+      pendingEvents.add(timer);
     });
 
     return () => {
-      clearTimeout(timer);
+      active = false;
+      ++checkId;
+      pendingEvents.forEach(clearTimeout);
       listener.subscription.unsubscribe();
     };
   }, []);
 
 
-  if (step === 'loading') return <LoadingScreen />;
-  if (session) return <HomeScreen session={session} />;
-  if (step === 'onboarding' && !deletedAccountEmail) {
+  if (onboardingCompleted === null) return <LoadingScreen />;
+  if (!onboardingCompleted && !deletedAccountEmail) {
     return (
       <OnboardingFlow
         onComplete={() => {
-          // Persist the flag so onboarding never appears again
-          void SecureStore.setItemAsync(ONBOARDING_DONE_KEY, '1');
-          setStep('auth');
+          setOnboardingCompleted(true);
+          void completeOnboarding().catch(() => {
+            console.warn('Could not save onboarding completion.');
+          });
         }}
       />
     );
   }
+
+  if (isCheckingSession) return <LoadingScreen />;
+  if (session) return <HomeScreen session={session} initialAccountState={accountState} />;
 
   return (
     <AuthScreen

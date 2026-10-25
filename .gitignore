@@ -89,3 +89,13 @@ example
 # generated native folders
 /ios
 /android
+
+# generated Android distribution artifacts (keep out of EAS source archives)
+*.aab
+*.apks
+bundletool.jar
+final-apks-*/
+
+# Templates contain variable names and public defaults, never live secrets.
+!.env.premium.example
+!supabase/functions/.env.example

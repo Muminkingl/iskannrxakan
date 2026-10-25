@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.trxstudio.iskannrxakan",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#042746",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

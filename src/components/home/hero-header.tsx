@@ -39,7 +39,7 @@ export function HeroHeader({
   onOpenAdminPanel,
 }: HeroHeaderProps) {
   const { t, language } = useLanguage();
-  const { isVip, openPlanModal } = usePlan();
+  const { isPremium, openPlanModal } = usePlan();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const rotation = useSharedValue(0);
 
@@ -102,8 +102,8 @@ export function HeroHeader({
           {t('heroKicker')} · {liveDate}
         </Text>
 
-        <Pressable onPress={!isVip ? openPlanModal : undefined} style={styles.priceRow}>
-          {isVip ? (
+        <Pressable onPress={!isPremium ? openPlanModal : undefined} style={styles.priceRow}>
+          {isPremium ? (
             // Split number and currency into separate Texts inside a flex row
             // This prevents the Arabic/Kurdish د.ع symbol from wrapping to a new line
             <View style={[styles.priceInlineRow, isEnglish && styles.priceInlineRowLtr]}>

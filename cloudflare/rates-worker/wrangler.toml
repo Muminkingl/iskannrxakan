@@ -3,6 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2026-10-02"
 workers_dev = true
 
+# Let Cloudflare serve cache hits before the Worker runs. The Worker still
+# keeps a short in-code fallback cache for a missed edge location.
+[cache]
+enabled = true
+
 [vars]
 SUPABASE_URL = "https://rsyinccrzotzoflbyqcf.supabase.co"
 ALLOWED_ORIGIN = "*"

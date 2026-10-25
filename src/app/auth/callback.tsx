@@ -10,7 +10,6 @@ export default function AuthCallbackScreen() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      let detectedDeletedEmail: string | null = null;
       try {
         if (url) {
           const hashIdx = url.indexOf('#');
@@ -28,24 +27,10 @@ export default function AuthCallbackScreen() {
           const refreshToken = params.get('refresh_token');
 
           if (accessToken && refreshToken) {
-            const { data: sessionData } = await supabase.auth.setSession({
+            await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken,
             });
-
-            const email = sessionData?.user?.email?.toLowerCase().trim();
-            if (email) {
-              const { data: isDeleted } = await supabase
-                .from('deleted_accounts')
-                .select('email')
-                .eq('email', email)
-                .maybeSingle();
-
-              if (isDeleted) {
-                detectedDeletedEmail = email;
-                await supabase.auth.signOut();
-              }
-            }
           }
         }
       } catch (e) {
@@ -53,14 +38,7 @@ export default function AuthCallbackScreen() {
       } finally {
         setTimeout(() => {
           try {
-            if (detectedDeletedEmail) {
-              router.replace({
-                pathname: '/',
-                params: { deleted_email: detectedDeletedEmail },
-              });
-            } else {
-              router.replace('/');
-            }
+            router.replace('/');
           } catch {
             // fallback
           }

@@ -14,21 +14,21 @@ interface GoldCalculatorModalProps {
 
 export function GoldCalculatorModal({ visible, onClose, goldRates }: GoldCalculatorModalProps) {
   const { t, language } = useLanguage();
-  const { isVip, openPlanModal } = usePlan();
+  const { isPremium, openPlanModal } = usePlan();
   const isEnglish = language === 'english';
 
   const [unitMode, setUnitMode] = useState<'mithqal' | 'gram'>('mithqal');
   const [quantityText, setQuantityText] = useState('');
 
-  // Lock behind VIP plan: if non-VIP somehow opens the modal, immediately close it & trigger Plan Modal
+  // Lock behind Premium plan: if non-Premium somehow opens the modal, immediately close it & trigger Plan Modal
   useEffect(() => {
-    if (visible && !isVip) {
+    if (visible && !isPremium) {
       onClose();
       openPlanModal();
     }
-  }, [visible, isVip]);
+  }, [visible, isPremium]);
 
-  if (!isVip) return null;
+  if (!isPremium) return null;
 
   const count = parseFloat(quantityText) || 0;
 

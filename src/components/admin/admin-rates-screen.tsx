@@ -27,7 +27,7 @@ type ActiveVipUser = {
 };
 
 export function AdminRatesScreen() {
-  const { activate30DaysVip } = usePlan();
+  const { activate30DaysPremium } = usePlan();
   const [ratesList, setRatesList] = useState<RateItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingRate, setEditingRate] = useState<RateItem | null>(null);
@@ -37,11 +37,11 @@ export function AdminRatesScreen() {
   const [paymentLoadError, setPaymentLoadError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // VIP Grant state
+  // Premium Grant state
   const [vipEmail, setVipEmail] = useState('');
   const [isGrantingVip, setIsGrantingVip] = useState(false);
 
-  // Payment Requests & Active VIP Users state
+  // Payment Requests & Active Premium Users state
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
   const [activeVipUsers, setActiveVipUsers] = useState<ActiveVipUser[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export function AdminRatesScreen() {
 
   const paymentChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // Fetch payment requests & active VIP users
+  // Fetch payment requests & active Premium users
   const fetchPaymentRequests = async () => {
     try {
       const { data, error } = await supabase
@@ -61,7 +61,7 @@ export function AdminRatesScreen() {
       setPaymentRequests((data || []) as PaymentRequest[]);
       setPaymentLoadError(false);
     } catch (error) {
-      console.warn('Could not load activation requests:', error);
+      console.warn('Could not load Premium access requests:', error);
       setPaymentLoadError(true);
     }
   };
@@ -96,7 +96,7 @@ export function AdminRatesScreen() {
       return;
     }
     setIsGrantingVip(true);
-    const success = await activate30DaysVip(vipEmail.trim());
+    const success = await activate30DaysPremium(vipEmail.trim());
     setIsGrantingVip(false);
 
     if (success) {
@@ -105,7 +105,7 @@ export function AdminRatesScreen() {
       setVipEmail('');
       fetchActiveVipUsers();
     } else {
-      Alert.alert('Error', 'Could not grant VIP access. Check database connection.');
+      Alert.alert('Error', 'Could not grant Premium access. Check database connection.');
     }
   };
 
@@ -116,7 +116,7 @@ export function AdminRatesScreen() {
       return;
     }
     setProcessingId(req.id);
-    const success = await activate30DaysVip(targetEmail);
+    const success = await activate30DaysPremium(targetEmail);
     if (success) {
       await supabase
         .from('payment_requests')
@@ -170,22 +170,22 @@ export function AdminRatesScreen() {
           .update({ is_vip: false, vip_expires_at: pastIso, expires_at: pastIso })
           .eq('email', cleanEmail);
 
-        setToastMessage(`ئەکاونتی ${cleanEmail} لە VIP لابدرا`);
+        setToastMessage(`ئەکاونتی ${cleanEmail} لە Premium لابدرا`);
         setTimeout(() => setToastMessage(null), 3000);
       } catch (err) {
-        console.log('Error revoking VIP:', err);
+        console.log('Error revoking Premium:', err);
       } finally {
         fetchActiveVipUsers();
       }
     };
 
     if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      const ok = window.confirm(`دڵنیایت لە لابردنی ئەکاونتی VIP بۆ ${cleanEmail}؟`);
+      const ok = window.confirm(`دڵنیایت لە لابردنی ئەکاونتی Premium بۆ ${cleanEmail}؟`);
       if (ok) performRevoke();
     } else {
       Alert.alert(
-        'لابردنی ئەڵماس (VIP)',
-        `دڵنیایت لە لابردنی ئەکاونتی VIP بۆ ${cleanEmail}؟`,
+        'لابردنی Premium',
+        `دڵنیایت لە لابردنی ئەکاونتی Premium بۆ ${cleanEmail}؟`,
         [
           { text: 'پاشگەزبوونەوە', style: 'cancel' },
           { text: 'لابردن', style: 'destructive', onPress: performRevoke },
@@ -338,7 +338,7 @@ export function AdminRatesScreen() {
 
   const pendingCount = paymentRequests.filter((r) => r.status === 'pending').length;
 
-  // Filtered + paginated VIP users — client-side only, no extra DB calls
+  // Filtered + paginated Premium users — client-side only, no extra DB calls
   const filteredVipUsers = vipSearch.trim()
     ? activeVipUsers.filter((u) =>
         u.email.toLowerCase().includes(vipSearch.trim().toLowerCase())
@@ -363,7 +363,7 @@ export function AdminRatesScreen() {
         <Text style={styles.screenSub}>گۆڕانکاری ڕاستەوخۆ لە نرخەکانی بازاڕی دراو و زێڕ</Text>
       </View>
 
-      {/* ─── SECTION 1: PENDING ACTIVATION REQUESTS ───────────────────── */}
+      {/* ─── SECTION 1: PENDING Premium ACCESS REQUESTS ───────────────────── */}
       <View style={styles.lightSectionCard}>
         <View style={styles.lightSectionHeader}>
           {pendingCount > 0 && (
@@ -371,7 +371,7 @@ export function AdminRatesScreen() {
               <Text style={styles.pendingBadgeText}>{pendingCount}</Text>
             </View>
           )}
-          <Text style={styles.lightSectionTitle}>داواکارییەکانی چالاککردن</Text>
+          <Text style={styles.lightSectionTitle}>داواکارییەکانی دەستگەیشتنی Premium</Text>
           <Ionicons name="key-outline" size={20} color="#3B82F6" />
         </View>
 
@@ -435,13 +435,13 @@ export function AdminRatesScreen() {
         )}
       </View>
 
-      {/* ─── SECTION 2: ACTIVE VIP USERS LIST ─────────────────────────── */}
+      {/* ─── SECTION 2: ACTIVE Premium USERS LIST ─────────────────────────── */}
       <View style={styles.lightSectionCard}>
         <View style={styles.lightSectionHeader}>
           <View style={styles.activeCountBadge}>
             <Text style={styles.activeCountText}>{filteredVipUsers.length}/{activeVipUsers.length}</Text>
           </View>
-          <Text style={styles.lightSectionTitle}>لیستی ئەکاونتە چالاکەکان (VIP Users)</Text>
+          <Text style={styles.lightSectionTitle}>ئەکاونتە چالاککراوەکانی بەڕێوەبەر (Premium)</Text>
           <Ionicons name="diamond-outline" size={20} color="#0284C7" />
         </View>
 
@@ -518,13 +518,13 @@ export function AdminRatesScreen() {
         )}
       </View>
 
-      {/* ─── SECTION 3: MANUAL VIP GRANT ─────────────────────────────── */}
+      {/* ─── SECTION 3: MANUAL Premium GRANT ─────────────────────────────── */}
       <View style={styles.lightSectionCard}>
         <View style={styles.lightSectionHeader}>
-          <Text style={styles.lightSectionTitle}>بەخشینی ڕاستەوخۆی ئەڵماس (٣٠ ڕۆژ)</Text>
+          <Text style={styles.lightSectionTitle}>بەخشینی ڕاستەوخۆی Premium (٣٠ ڕۆژ)</Text>
           <Ionicons name="add-circle-outline" size={20} color="#2563EB" />
         </View>
-        <Text style={styles.lightSectionSub}>ئیمەیڵی بەکارهێنەر بنووسە بۆ چالاكکردنی ئەڵماس بۆ ٣٠ ڕۆژ</Text>
+        <Text style={styles.lightSectionSub}>ئیمەیڵی بەکارهێنەر بنووسە بۆ چالاكکردنی Premium بۆ ٣٠ ڕۆژ</Text>
 
         <View style={styles.grantInputRow}>
           <TextInput
@@ -1013,7 +1013,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
-  // Active VIP Users Row
+  // Active Premium Users Row
   vipUserRowCard: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
@@ -1056,7 +1056,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Manual VIP Grant
+  // Manual Premium Grant
   grantInputRow: {
     flexDirection: 'row-reverse',
     gap: 8,

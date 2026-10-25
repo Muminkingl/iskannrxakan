@@ -13,7 +13,7 @@ import type { GoldItem } from '@/types/market';
 export function GoldScreen() {
   const { colors, isDark } = useTheme();
   const { t, language } = useLanguage();
-  const { isVip, openPlanModal } = usePlan();
+  const { isPremium, openPlanModal } = usePlan();
   const { rates } = useRates();
   const isEnglish = language === 'english';
 
@@ -85,7 +85,7 @@ export function GoldScreen() {
       <View style={[styles.sectionHeaderRow, isEnglish && styles.rowLtr]}>
         <Pressable
           onPress={() => {
-            if (!isVip) {
+            if (!isPremium) {
               openPlanModal();
             } else {
               setIsCalcModalOpen(true);
@@ -104,7 +104,7 @@ export function GoldScreen() {
         {goldRates.map((item) => (
           <Pressable
             key={item.id}
-            onPress={!isVip ? openPlanModal : undefined}
+            onPress={!isPremium ? openPlanModal : undefined}
             style={[styles.karatCard, { backgroundColor: colors.cardBg, borderColor: colors.borderColor }]}
           >
             <View style={[styles.karatCardInner, isEnglish ? styles.rowLtr : styles.rowRtl]}>
@@ -121,7 +121,7 @@ export function GoldScreen() {
               </View>
 
               {/* Price Pill */}
-              {isVip ? (
+              {isPremium ? (
                 <View style={[styles.pricePill, { backgroundColor: colors.bgPrimary, borderColor: colors.borderColor }]}>
                   <Text
                     numberOfLines={1}

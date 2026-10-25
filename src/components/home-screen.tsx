@@ -15,18 +15,24 @@ import { NoticeBanner } from '@/components/home/notice-banner';
 import { RatesTable } from '@/components/home/rates-table';
 import { BottomNavBar } from '@/components/navigation/bottom-nav-bar';
 import { SideDrawer } from '@/components/navigation/side-drawer';
-import { DiamondPlanModal } from '@/components/plan/diamond-plan-modal';
+import { PremiumPlanModal } from '@/components/plan/premium-plan-modal';
 import { SettingsModal } from '@/components/settings/settings-modal';
-import { fetchDbAdmins, getUserRole } from '@/lib/auth-roles';
+import { type AccountState, fetchAccountState } from '@/lib/auth-roles';
 import { supabase } from '@/lib/supabase';
-import type { TabId } from '@/types/market';
+import type { TabId, UserRole } from '@/types/market';
 
 import { useLanguage } from '@/context/language-context';
 import { PlanProvider } from '@/context/plan-context';
 import { useRates } from '@/context/rates-context';
 import { useTheme } from '@/context/theme-context';
 
-export function HomeScreen({ session }: { session: Session }) {
+export function HomeScreen({
+  session,
+  initialAccountState = null,
+}: {
+  session: Session;
+  initialAccountState?: AccountState | null;
+}) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { isDark, colors } = useTheme();
@@ -41,23 +47,26 @@ export function HomeScreen({ session }: { session: Session }) {
   // Customer rates come from one cached CDN snapshot. No customer Realtime
   // channels are opened here; Supabase Realtime is reserved for the admin UI.
   const { rates: liveRates, refreshRates } = useRates();
-  const [dbAdmins, setDbAdmins] = useState<string[]>([]);
+  const [accountState, setAccountState] = useState<AccountState | null>(initialAccountState);
   const [isOwnerModalOpen, setIsOwnerModalOpen] = useState(false);
 
   const userEmail = session.user.email;
-  const userRole = getUserRole(userEmail, dbAdmins);
+  const userRole: UserRole = accountState?.role ?? 'user';
   const isAdminOrOwner = userRole === 'owner' || userRole === 'admin';
 
-  // Admin membership changes rarely. A single request at app start avoids
-  // opening an app_admins channel for every customer.
+  // The entry gate normally provides this state. The fallback handles an
+  // already-mounted HomeScreen after a token refresh without fetching the
+  // entire app_admins table.
   useEffect(() => {
-    loadAdmins();
-  }, []);
-
-  const loadAdmins = async () => {
-    const admins = await fetchDbAdmins();
-    setDbAdmins(admins);
-  };
+    if (accountState) return;
+    let active = true;
+    void fetchAccountState().then((state) => {
+      if (active && state) setAccountState(state);
+    });
+    return () => {
+      active = false;
+    };
+  }, [accountState]);
 
   const handleSignOut = async () => {
     setIsDrawerOpen(false);
@@ -89,7 +98,7 @@ export function HomeScreen({ session }: { session: Session }) {
   const currencyRates = liveRates.filter((r) => r.category === 'currency' && r.code !== 'USD');
 
   return (
-    <PlanProvider session={session} dbAdmins={dbAdmins}>
+    <PlanProvider key={session.user.id} session={session} userRole={userRole} initialState={accountState}>
       <View style={styles.root}>
         <StatusBar barStyle="light-content" backgroundColor="#3B50C8" />
 
@@ -203,8 +212,7 @@ export function HomeScreen({ session }: { session: Session }) {
           onSignOut={handleSignOut}
         />
 
-        {/* Policy-Compliant Diamond VIP Modal */}
-        <DiamondPlanModal />
+        <PremiumPlanModal />
 
         {/* Pop-up Calculator Modal */}
         <CalculatorModal
@@ -224,9 +232,10 @@ export function HomeScreen({ session }: { session: Session }) {
           onClose={() => setIsAboutAppModalOpen(false)}
         />
 
-        {/* Owner Panel Access Modal (For muminrtx@gmail.com) */}
+        {/* Owner Panel Access Modal (administrator-only) */}
         <OwnerPanelModal
           visible={isOwnerModalOpen}
+          ownerEmail={userEmail || ''}
           onClose={() => setIsOwnerModalOpen(false)}
         />
 
